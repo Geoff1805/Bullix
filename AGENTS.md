@@ -21,6 +21,7 @@
   3. **Déploiement Site Web** : Workflow automatique de build et déploiement du frontend (ex: Cloudflare Pages).
   4. **Sécurité & Dépendances** : Toujours maintenir la configuration Dependabot (`.github/dependabot.yml`) et les actions de Dependency Scanning / Review pour bloquer les vulnérabilités.
   5. **Mise à jour automatique Gradle (GA stable)** : Toujours intégrer le workflow de mise à jour automatique du Gradle Wrapper (`.github/workflows/update-gradle-wrapper.yml`) ciblant strictement le canal `stable` (GA uniquement, exclusion des Nightly builds et Release Candidates), avec validation d'intégrité SHA-256 et alignement dynamique de la CI (`./gradlew` sans version Gradle codée en dur).
+  6. **Résolution Immédiate des Alertes Dependabot (Zéro Tolérance Vulnérabilités)** : Surveiller en continu et corriger sans délai toutes les alertes de sécurité Dependabot dès détection (éradication des dépendances transitives obsolètes/superflues, élimination des plugins orphelins, et mise à jour immédiate vers les versions patchées).
 
 ## Conventions du Projet
 - **Langue** : Toujours répondre en français de manière concise avec des liens cliquables `file:///` vers les fichiers et symboles modifiés.
