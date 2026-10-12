@@ -50,6 +50,9 @@ interface SeriesDao {
 
     @Query("SELECT * FROM series WHERE title LIKE '%' || :query || '%' AND deleted_at IS NULL ORDER BY title ASC")
     fun searchSeries(query: String): Flow<List<SeriesEntity>>
+
+    @Query("SELECT * FROM series WHERE title LIKE '%' || :query || '%' AND deleted_at IS NULL ORDER BY title ASC")
+    suspend fun searchSeriesSync(query: String): List<SeriesEntity>
 }
 
 @Dao
