@@ -46,6 +46,7 @@ Bullix résout les problèmes quotidiens des passionnés de BD :
 - **Cache & Assets** : Cloudflare KV (mise en cache des APIs externes) & Cloudflare R2 (images et couvertures).
 
 Pour tous les détails de conception, consultez le document [ARCHITECTURE.md](ARCHITECTURE.md).
+Pour le guide pas-à-pas de configuration, déploiement Cloudflare et procédure sous Windows, consultez [DEPLOYMENT_WINDOWS_CLOUDFLARE.md](DEPLOYMENT_WINDOWS_CLOUDFLARE.md).
 
 ---
 
