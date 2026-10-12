@@ -5,8 +5,9 @@
 - **Méthode de publication** : En l'absence du binaire `git` local, utiliser directement le serveur MCP GitHub (`github-mcp-server` via l'outil `push_files` ou `create_or_update_file`) vers `owner: "Geoff1805"`, `repo: "Bullix"`, `branch: "main"`, avec un message de commit clair au format Conventional Commits (`feat:`, `fix:`, `ci:`, `chore:`, `docs:`).
 
 ## Délégation Maximale vers GitHub Actions (CI/CD First)
-- **Décharger la machine locale** : L'environnement local (notamment Windows avec Java 8) ne doit pas être encombré par des compilations ou outillages lourds. Déléguer systématiquement le maximum de tâches d'exécution à GitHub Actions.
-- **Rôle de l'Agent** : Se concentrer sur ce que GitHub ne sait pas faire (conception architecturale, écriture de code métier propre, tests unitaires, algorithmes, diagnostics et documentation claire).
+- **Décharge locale et décharge de l'environnement Antigravity** : L'environnement local Windows (notamment limité par Java 8) ainsi que l'environnement Antigravity ne doivent pas être encombrés par des compilations lourdes, des téléchargements d'outillages massifs ou des exécutions consommatrices de ressources.
+- **Règle absolue : Ce qui peut être fait par GitHub doit être fait sur GitHub.**
+- **Rôle de l'Agent** : Se concentrer exclusivement sur ce que GitHub ne sait pas faire (conception architecturale, écriture de code métier propre, tests unitaires, algorithmes, diagnostics, configuration des workflows et documentation claire).
 - **Standards obligatoires pour chaque projet / feature** :
   1. **Tests automatiques** : Toujours concevoir des tests unitaires et d'intégration et les brancher dans les workflows CI.
   2. **Génération d'APK** : Workflow automatique (`assembleDebug` / `assembleRelease`) avec publication d'artefacts téléchargeables.
