@@ -1,0 +1,40 @@
+name: Deploy Cloudflare Pages
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'web/**'
+      - 'functions/**'
+      - 'wrangler.toml'
+      - 'package.json'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Web & Edge Functions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Typecheck Edge Functions
+        run: npm run typecheck
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy web --project-name=bullix
+        continue-on-error: true # Ne bloque pas le pipeline si les tokens Secrets ne sont pas encore renseignés
