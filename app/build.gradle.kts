@@ -1,4 +1,3 @@
-import java.util.Base64
 import java.util.Properties
 
 plugins {
@@ -43,16 +42,9 @@ android {
     buildConfigField("String", "BULLIX_API_URL", "\"$apiUrl\"")
   }
 
-  val keystoreFile = file("${rootDir}/app/debug.keystore")
-  val keystoreBase64File = file("${rootDir}/app/debug.keystore.base64")
-  if (!keystoreFile.exists() && keystoreBase64File.exists()) {
-    val decoded = Base64.getDecoder().decode(keystoreBase64File.readText().trim())
-    keystoreFile.writeBytes(decoded)
-  }
-
   signingConfigs {
     getByName("debug") {
-      storeFile = keystoreFile
+      storeFile = file("${rootDir}/app/debug.keystore")
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"
