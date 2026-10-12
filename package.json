@@ -11,7 +11,8 @@
     "seed:generate": "tsx scripts/seeding/import_seed.ts",
     "pages:dev": "wrangler pages dev web",
     "pages:deploy": "wrangler pages deploy web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typecheck:scripts": "tsc -p scripts/tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250224.0",
