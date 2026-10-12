@@ -33,10 +33,20 @@ jobs:
       - name: Typecheck Edge Functions
         run: npm run typecheck
 
+      - name: Vérifier la Présence des Identifiants Cloudflare
+        id: check_credentials
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] || [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "has_token=false" >> $GITHUB_OUTPUT
+            echo "::warning title=Secrets Cloudflare Manquants::CLOUDFLARE_API_TOKEN ou CLOUDFLARE_ACCOUNT_ID n'est pas encore configuré dans GitHub Secrets."
+          else
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Deploy to Cloudflare Pages
+        if: steps.check_credentials.outputs.has_token == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web --project-name=bullix
-        continue-on-error: true # Ne bloque pas le pipeline si les tokens Secrets ne sont pas encore renseignés
