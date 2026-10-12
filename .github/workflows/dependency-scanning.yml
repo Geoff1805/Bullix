@@ -39,6 +39,7 @@ jobs:
           echo "ℹ️ Le repository est privé sans GitHub Advanced Security (GHAS) actif."
           echo "La revue des dépendances PR est ignorée. L'audit de sécurité npm & gradle s'exécute dans le job security-audit."
 
+
   security-audit:
     name: Security & Vulnerability Audit
     runs-on: ubuntu-latest
@@ -62,11 +63,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Gradle 9.3.1
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: '9.3.1'
+
+      - name: Make gradlew executable
+        run: |
+          if [ -f gradlew ]; then chmod +x gradlew; fi
 
       - name: Check Gradle Dependencies
         run: |
-          gradle -q dependencies --configuration releaseRuntimeClasspath || gradle -q dependencies
+          ./gradlew -q dependencies --configuration releaseRuntimeClasspath || ./gradlew -q dependencies
