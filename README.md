@@ -19,8 +19,14 @@ Bullix résout les problèmes quotidiens des passionnés de BD :
   - Arborescence personnalisable (*Pièce › Meuble › Étagère › Casier*).
   - Liaison avec des étiquettes QR Code physiques.
   - Modes de rangement par lots et audit d'étagères.
-- **Cascade d'APIs gratuites & ouvertes** :
-  - **BnF (API SRU)** pour les éditions françaises et le dépôt légal.
+- **Base Online Amorcée (BDthèque & BDvore)** :
+  - La recherche interroge prioritairement notre base Cloudflare D1 pré-remplie par scraping des catalogues BDthèque et BDvore.
+  - Résolution instantanée sans dépendre des APIs tierces pour les BDs francophones.
+- **Cache Prédictif Intelligent (« Toute la Série en Local »)** :
+  - Dès qu'un tome d'une saga entre dans la collection ou est scanné, **l'intégralité des tomes de la série est téléchargée et mise en cache dans la base locale SQLite du téléphone**.
+  - Zéro latence pour les scans suivants de la série et calcul des manquants 100 % hors-ligne en brocante.
+- **Cascade d'APIs gratuites & ouvertes en fallback** :
+  - **BnF (API SRU)** pour les éditions françaises et le dépôt légal manquant.
   - **Open Library & Google Books** pour les couvertures et compléments bibliographiques.
   - **Comic Vine / Metron** pour les comics US.
   - **MangaDex / AniList / Wikidata** pour la structure et le nombre total de tomes par série.
