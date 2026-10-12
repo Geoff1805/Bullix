@@ -9,6 +9,7 @@ build/
 local.properties
 .env
 *.keystore
+!app/debug.keystore
 *.jks
 infos manuelles.txt
 scraped_data.json
