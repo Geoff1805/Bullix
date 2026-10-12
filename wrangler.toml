@@ -14,8 +14,7 @@ database_id = "7bfc27fe-0d17-437f-96a1-d99a66bb5466"
 binding = "CACHE_KV"
 id = "86cd4a3466f24257a2ed4d993abd85c9"
 
-# Cloudflare R2 Bucket for cover art & locker photos (Juridiction UE)
+# Cloudflare R2 Bucket for cover art & locker photos
 [[r2_buckets]]
 binding = "IMAGES_BUCKET"
 bucket_name = "bullix-images"
-jurisdiction = "eu"
