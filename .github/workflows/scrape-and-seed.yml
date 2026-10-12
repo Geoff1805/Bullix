@@ -22,6 +22,11 @@ on:
         required: true
         default: 'BD,Manga,Comics'
         type: string
+      upload_to_r2:
+        description: 'Uploader directement les jaquettes vers Cloudflare R2 (bullix-images)'
+        required: true
+        default: true
+        type: boolean
       apply_to_d1:
         description: 'Injecter le batch SQL dans Cloudflare D1 (bullix-db)'
         required: true
@@ -33,7 +38,7 @@ on:
 
 jobs:
   scrape_and_seed:
-    name: Scrape & Seed Cloudflare D1
+    name: Scrape & Seed Cloudflare D1 + R2
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -67,7 +72,20 @@ jobs:
             --output="scraped_data.json" \
             --sql="generated_seed.sql"
 
-      - name: Sauvegarder Temporairement les Données (GitHub Artifacts)
+      # Transfert DIRECT des jaquettes vers Cloudflare R2 (Aucune sauvegarde image dans GitHub)
+      - name: Uploader Directement les Jaquettes vers Cloudflare R2 (Zero Image dans GitHub)
+        if: ${{ inputs.upload_to_r2 != false }}
+        run: |
+          echo "Transfert direct des jaquettes vers Cloudflare R2 (bullix-images, juridiction UE)..."
+          echo "Aucune image n'est persistée sur GitHub."
+          npx tsx scripts/scraping/upload_covers_to_r2.ts scraped_data.json generated_seed.sql
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        continue-on-error: true
+
+      # Sauvegarde temporaire exclusive des métadonnées texte (SQL & JSON), aucune image
+      - name: Sauvegarder Temporairement les Métadonnées DB (GitHub Artifacts - 14j)
         uses: actions/upload-artifact@v4
         with:
           name: bullix-scraped-database-run-${{ github.run_number }}
@@ -76,6 +94,7 @@ jobs:
             generated_seed.sql
           retention-days: 14
 
+      # Injection du batch SQL dans Cloudflare D1
       - name: Injecter dans Cloudflare D1 (bullix-db)
         if: ${{ inputs.apply_to_d1 != false }}
         uses: cloudflare/wrangler-action@v3
