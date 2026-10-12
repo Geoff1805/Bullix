@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bullix — Gestionnaire de Collection BD Offline-First</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+  <style>
+    :root {
+      --pico-primary: #ffb300;
+      --pico-primary-background: #ffb300;
+      --pico-primary-underline: rgba(255, 179, 0, 0.5);
+    }
+    header {
+      border-bottom: 1px solid var(--pico-muted-border-color);
+      margin-bottom: 2rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+    .badge-owned { background-color: #2e7d32; color: #fff; }
+    .badge-missing { background-color: #d32f2f; color: #fff; }
+    .badge-location { background-color: #0288d1; color: #fff; }
+    .album-card {
+      display: flex;
+      gap: 1rem;
+      border: 1px solid var(--pico-muted-border-color);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+    .album-cover {
+      width: 70px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 4px;
+      background: #333;
+    }
+  </style>
+</head>
+<body class="container">
+  <header>
+    <nav>
+      <ul>
+        <li><strong>📚 Bullix</strong></li>
+      </ul>
+      <ul>
+        <li><a href="#collection">Collection</a></li>
+        <li><a href="#locations">Casiers</a></li>
+        <li><a href="#search">Recherche ISBN</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section id="lookup-section">
+      <h3>🔍 Recherche Rapide d'Album (Online D1 + Fallback)</h3>
+      <form id="lookup-form" onsubmit="handleLookup(event)">
+        <fieldset role="group">
+          <input type="text" id="isbn-input" placeholder="Entrez un EAN ou ISBN (ex: 9782012101333)" required />
+          <input type="submit" value="Vérifier Possession" />
+        </fieldset>
+      </form>
+      <div id="lookup-result"></div>
+    </section>
+
+    <hr />
+
+    <section id="collection-section">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>📖 Ma Collection</h3>
+        <button class="outline" onclick="loadSampleData()">Charger Exemple</button>
+      </div>
+      <div id="collection-list">
+        <p><em>Chargement de votre collection locale...</em></p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    async function handleLookup(e) {
+      e.preventDefault();
+      const isbn = document.getElementById('isbn-input').value.trim();
+      const container = document.getElementById('lookup-result');
+      container.innerHTML = '<aria-busy="true">Recherche dans la base Bullix D1...</aria-busy>';
+
+      try {
+        const res = await fetch(`/api/lookup/isbn?isbn=${encodeURIComponent(isbn)}`);
+        if (!res.ok) {
+          container.innerHTML = `<article style="border-left: 4px solid #d32f2f;"><strong>Non répertorié</strong> : Aucun album trouvé pour ${isbn}.</article>`;
+          return;
+        }
+        const data = await res.json();
+        const album = data.album || data.data;
+        const series = data.series;
+        const seriesAlbums = data.series_albums || [];
+
+        container.innerHTML = `
+          <article style="border-left: 4px solid #2e7d32;">
+            <h4>${series ? series.title : 'Album'} — Tome ${album.volume_number || 1} : ${album.title || 'Sans titre'}</h4>
+            <p><strong>Auteurs :</strong> ${album.authors || 'Non renseigné'} | <strong>Éditeur :</strong> ${album.publisher || 'Non renseigné'}</p>
+            <p><span class="badge badge-owned">Source : ${data.source}</span> ${seriesAlbums.length ? `<span class="badge badge-location">${seriesAlbums.length} tomes de la série en cache</span>` : ''}</p>
+          </article>
+        `;
+      } catch (err) {
+        container.innerHTML = `<article style="border-left: 4px solid #d32f2f;">Erreur de connexion : ${err.message}</article>`;
+      }
+    }
+
+    function loadSampleData() {
+      const list = document.getElementById('collection-list');
+      list.innerHTML = `
+        <div class="album-card">
+          <img class="album-cover" src="https://covers.openlibrary.org/b/isbn/9782012101333-M.jpg" alt="Astérix" />
+          <div>
+            <h4>Astérix — Tome 1 : Astérix le Gaulois</h4>
+            <p><span class="badge badge-owned">Possédé</span> <span class="badge badge-location">Salon › Bibliothèque › Casier n°1</span></p>
+            <small>Goscinny, Uderzo • Dargaud (1961) • État : Très bon</small>
+          </div>
+        </div>
+        <div class="album-card">
+          <img class="album-cover" src="https://covers.openlibrary.org/b/isbn/9782205049657-M.jpg" alt="Blacksad" />
+          <div>
+            <h4>Blacksad — Tome 1 : Quelque part entre les ombres</h4>
+            <p><span class="badge badge-owned">Possédé</span> <span class="badge badge-location">Salon › Bibliothèque › Casier n°2</span></p>
+            <small>Juan Díaz Canales, Juanjo Guarnido • Dargaud (2000) • État : Neuf</small>
+          </div>
+        </div>
+      `;
+    }
+
+    // Auto-load sample display on first visit
+    loadSampleData();
+  </script>
+</body>
+</html>
