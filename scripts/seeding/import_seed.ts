@@ -62,4 +62,39 @@ VALUES ('${a.id}', '${s.id}', ${a.volume_number}, ${albumTitle}, ${cleanIsbn}, $
   return statements.join('\n');
 }
 
-console.log('Utilitaire de génération de seed SQL initialisé.');
+if (typeof process !== 'undefined' && process.argv && process.argv[1]?.includes('import_seed')) {
+  const inputFile = process.argv[2];
+  const outputFile = process.argv[3];
+
+  if (!inputFile) {
+    console.log(`
+[Bullix Seeder] Usage:
+  npx tsx scripts/seeding/import_seed.ts <input_file.json> [output_file.sql]
+
+Exemple:
+  npx tsx scripts/seeding/import_seed.ts scripts/seeding/sample_scraped_data.json scripts/seeding/generated_seed.sql
+    `);
+  } else {
+    try {
+      const fullInputPath = path.resolve(process.cwd(), inputFile);
+      if (!fs.existsSync(fullInputPath)) {
+        console.error(`❌ Erreur: Fichier introuvable: ${fullInputPath}`);
+        process.exit(1);
+      }
+      const rawData = fs.readFileSync(fullInputPath, 'utf-8');
+      const seriesList: ScrapedSeries[] = JSON.parse(rawData);
+      const sqlBatch = generateSqlBatch(seriesList);
+
+      if (outputFile) {
+        const fullOutputPath = path.resolve(process.cwd(), outputFile);
+        fs.writeFileSync(fullOutputPath, sqlBatch, 'utf-8');
+        console.log(`✅ Succès: ${seriesList.length} série(s) convertie(s) en SQL dans ${fullOutputPath}`);
+      } else {
+        console.log(sqlBatch);
+      }
+    } catch (err: any) {
+      console.error(`❌ Erreur lors du traitement: ${err.message}`);
+      process.exit(1);
+    }
+  }
+}
