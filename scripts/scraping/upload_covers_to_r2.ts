@@ -70,7 +70,7 @@ export async function uploadCoversToR2(
         console.log(`     ☁️ Envoi direct vers Cloudflare R2: ${r2Key}...`);
         try {
           execSync(
-            `npx wrangler r2 object put ${BUCKET_NAME}/${r2Key} --file="${localTmpFile}" --content-type=image/jpeg --jurisdiction=${JURISDICTION}`,
+            `npx wrangler r2 object put ${BUCKET_NAME}/${r2Key} --file="${localTmpFile}" --content-type=image/jpeg --jurisdiction=${JURISDICTION} --remote`,
             { stdio: 'pipe' }
           );
           // Remplacement immédiat par l'URL Cloudflare Edge

@@ -39,6 +39,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    if (!headers.get('Content-Type')) {
+      headers.set('Content-Type', 'image/jpeg');
+    }
 
     return new Response(object.body, {
       status: 200,
