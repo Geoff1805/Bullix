@@ -31,7 +31,38 @@ interface ScrapedAlbum {
 }
 
 export function generateSqlBatch(seriesList: ScrapedSeries[]): string {
-  const statements: string[] = [];
+  const statements: string[] = [
+    `CREATE TABLE IF NOT EXISTS series (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    type TEXT CHECK(type IN ('Franco-belge', 'Manga', 'Comics', 'Autre')) DEFAULT 'Franco-belge',
+    status TEXT CHECK(status IN ('En cours', 'Terminée', 'Abandonnée', 'Inconnue')) DEFAULT 'En cours',
+    total_volumes INTEGER DEFAULT NULL,
+    publisher_default TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER DEFAULT NULL
+);`,
+    `CREATE INDEX IF NOT EXISTS idx_series_title ON series(title);`,
+    `CREATE TABLE IF NOT EXISTS albums (
+    id TEXT PRIMARY KEY NOT NULL,
+    series_id TEXT NOT NULL,
+    volume_number REAL NOT NULL,
+    title TEXT,
+    isbn TEXT,
+    upc TEXT,
+    authors TEXT,
+    publisher TEXT,
+    published_year INTEGER,
+    cover_image_url TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER DEFAULT NULL,
+    FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
+);`,
+    `CREATE INDEX IF NOT EXISTS idx_albums_isbn ON albums(isbn);`,
+    `CREATE INDEX IF NOT EXISTS idx_albums_series_id ON albums(series_id, volume_number);`
+  ];
   const now = Date.now();
 
   for (const s of seriesList) {
