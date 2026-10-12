@@ -21,7 +21,7 @@ export interface ExternalAlbumResult {
   cover_image_url: string | null;
   description?: string | null;
   series_type: 'Franco-belge' | 'Manga' | 'Comics';
-  source: 'bnf' | 'google_books' | 'openlibrary' | 'mangadex';
+  source: 'bnf' | 'inventaire' | 'google_books' | 'openlibrary' | 'mangadex';
 }
 
 const USER_AGENT = 'Bullix-App/1.0 (https://bullix.pages.dev; contact: geoff@bullix.app)';
@@ -313,25 +313,83 @@ export async function fetchFromMangaDex(query: string): Promise<ExternalAlbumRes
     return null;
   }
 }
+/**
+ * 5. Inventaire.io — Base ouverte & collaborative (Équivalent Open Food Facts du livre)
+ * Données ouvertes reliées à Wikidata et à la BnF avec jaquettes
+ */
+export async function fetchFromInventaire(isbn: string): Promise<ExternalAlbumResult | null> {
+  try {
+    const clean = isbn.replace(/[-\s]/g, '').trim();
+    const url = `https://inventaire.io/entity/isbn:${clean}.json`;
+
+    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    if (!res.ok) return null;
+    const data: any = await res.json();
+    if (!data.entities) return null;
+
+    const entityKeys = Object.keys(data.entities);
+    if (entityKeys.length === 0) return null;
+
+    const entity = data.entities[entityKeys[0]];
+    const title = entity.labels?.fromclaims || entity.claims?.['wdt:P1476'] || 'Album sans titre';
+    const pubDate = entity.claims?.['wdt:P577'];
+    let publishedYear: number | null = null;
+    if (pubDate) {
+      const y = String(pubDate).match(/[0-9]{4}/);
+      if (y) publishedYear = parseInt(y[0], 10);
+    }
+
+    let coverUrl: string | null = null;
+    if (entity.image?.url) {
+      coverUrl = `https://inventaire.io${entity.image.url}`;
+    } else {
+      coverUrl = `https://covers.openlibrary.org/b/isbn/${clean}-L.jpg`;
+    }
+
+    return {
+      id: `alb_inv_${clean}`,
+      series_id: `s_${cleanSlug(title)}`,
+      series_title: title,
+      volume_number: 1,
+      title: title,
+      isbn: clean,
+      authors: null,
+      publisher: null,
+      published_year: publishedYear,
+      cover_image_url: coverUrl,
+      series_type: 'Franco-belge',
+      source: 'inventaire'
+    };
+  } catch (err) {
+    console.warn('[Inventaire API] Erreur:', err);
+    return null;
+  }
+}
 
 /**
  * Orchestrateur de recherche en cascade (Waterfall Pipeline)
- * Priorité : 1. BnF -> 2. Google Books -> 3. Open Library -> 4. MangaDex
+ * Priorité : 1. BnF -> 2. Inventaire.io -> 3. Google Books -> 4. Open Library -> 5. MangaDex
  */
 export async function cascadeLookup(isbnOrQuery: string, isIsbn: boolean): Promise<ExternalAlbumResult | null> {
   // 1. Source n°1 : BnF Catalogue général
   const bnfResult = await fetchFromBnf(isbnOrQuery, isIsbn);
   if (bnfResult) return bnfResult;
 
-  // 2. Source complémentaire : Google Books
+  // 2. Source collaborative ouverte : Inventaire.io (si ISBN)
+  if (isIsbn) {
+    const invResult = await fetchFromInventaire(isbnOrQuery);
+    if (invResult) return invResult;
+  }
+
+  // 3. Source complémentaire : Google Books
   const gbResult = await fetchFromGoogleBooks(isbnOrQuery, isIsbn);
   if (gbResult) return gbResult;
 
-  // 3. Source de repli : Open Library
+  // 4. Source de repli : Open Library
   const olResult = await fetchFromOpenLibrary(isbnOrQuery, isIsbn);
   if (olResult) return olResult;
 
-  // 4. Source manga spécifique si recherche textuelle
+  // 5. Source manga spécifique si recherche textuelle
   if (!isIsbn) {
     const mdResult = await fetchFromMangaDex(isbnOrQuery);
     if (mdResult) return mdResult;
