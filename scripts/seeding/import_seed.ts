@@ -4,8 +4,9 @@
  * Usage: npx ts-node scripts/seeding/import_seed.ts <input_file.json>
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import process from 'node:process';
 
 interface ScrapedSeries {
   id: string;
