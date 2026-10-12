@@ -66,31 +66,68 @@ flowchart TB
 
 ---
 
-## 3. Stratégie de Capture & Pipeline d'Identification
+---
 
-L'identification combine deux couches complémentaires : **On-Device (100 % hors-ligne)** et **Edge Resolution (en ligne avec mise en cache)**.
+## 3. Stratégie de Capture, Recherche & Cache Prédictif
 
-### 3.1. Pipeline Hors-Ligne (On-Device)
-- **Code-barres (EAN-13 / UPC-A)** : Scan via Google ML Kit Barcode Scanning.
-  - Recherche prioritaire dans la base locale SQLite : si l'album ou l'EAN existe déjà, le statut de possession s'affiche immédiatement (< 50 ms).
-- **OCR de Couverture (Sans code-barres / Éditions anciennes)** :
-  - Extraction de texte par ML Kit Text Recognition sur l'appareil.
-  - Algorithme de nettoyage textuel local :
-    1. Extraction et conversion des numéros de tomes (chiffres arabes, romains `Tome IV`, `#12`).
-    2. Filtrage du bruit typographique (mentions légales, logos éditeurs, prix en Francs/Euros).
-    3. Normalisation (retrait des accents, mise en minuscules pour comparaison floue).
-  - Recherche floue (Levenshtein / Trigrammes) dans les titres de séries de la base locale.
+L'identification suit une hiérarchie stricte en 3 niveaux, optimisée pour minimiser les appels externes et maximiser l'autonomie hors-ligne.
 
-### 3.2. Cascade d'APIs et Résolution Edge
+```mermaid
+flowchart TD
+    Scan["Scan Code-barres ou OCR Couverture"] --> Step0{"1. Base Locale SQLite\n(Sur l'appareil)"}
+    Step0 -- "Trouvé (< 50ms)" --> FoundLocal["Affichage Statut\n(Déjà possédé ? Casier ?)"]
+    Step0 -- "Non trouvé localement" --> Step1{"2. Base Online Bullix D1\n(Scraping BDthèque + BDvore)"}
+    
+    Step1 -- "Trouvé dans notre D1" --> CacheSeries["🔥 Mise en cache locale\nde TOUTE LA SÉRIE"]
+    CacheSeries --> FoundD1["Affichage Fiche & Ajout"]
+    
+    Step1 -- "Absent de notre base" --> Step2{"3. Cascade APIs Externes\n(BnF, OpenLib, MangaDex)"}
+    Step2 -- "Résolu" --> SaveOnline["Enregistrement dans D1\n+ Cache série complète local"]
+    Step2 -- "Échec" --> Manual["Saisie Manuelle Assistée"]
+```
 
-Lorsque le réseau est disponible, les recherches non résolues localement interrogent le backend Cloudflare qui orchestre la cascade :
+### 3.1. Hiérarchie de Résolution des Requêtes
 
-| Priorité | Cible | Source | Rôle & Format | Quotas & Stratégie |
-| :--- | :--- | :--- | :--- | :--- |
-| **1** | BD & Manga FR | **BnF (API SRU)** | Référence officielle ISBN/EAN, titre, auteurs, éditeur (MarcXML / Dublin Core) | Gratuit, illimité, respectueux |
-| **2** | Couvertures & Secours | **Open Library & Google Books** | Récupération des URLs de jaquettes et résolution secondaire | Cache KV 30 jours, R2 pour les assets |
-| **3** | Comics US | **Comic Vine / Metron** | Résolution des codes UPC 5 chiffres, numéros de fascicules | API Key gratuite, mise en cache stricte |
-| **4** | Structure Séries | **MangaDex / AniList / Wikidata** | Nombre total de volumes parus, statut ("En cours" / "Terminée") | Interrogation ponctuelle à l'ajout |
+1. **Niveau 0 — Base Locale Smartphone (0 latence, 100 % Offline)** :
+   - Vérification instantanée par ISBN ou identifiant dans SQLite local.
+2. **Niveau 1 — Base Online Bullix / Cloudflare D1 (Priorité Première en Ligne)** :
+   - Notre base D1 est pré-alimentée en amont par un **scraping d'amorçage massif** de la **BDthèque** et de **BDvore**.
+   - Si la connexion est active et que l'album n'est pas encore en local, la recherche interroge directement notre D1 Edge (`/api/lookup/isbn`).
+   - Couvre la quasi-totalité du patrimoine Franco-belge, mangas et comics traduits.
+3. **Niveau 2 — Cascade d'APIs Publiques de Secours (Fallback)** :
+   - Uniquement si l'album n'est pas encore répertorié dans notre base D1 :
+     - **BnF (API SRU)** : Référence légale officielle ISBN/EAN français.
+     - **Open Library & Google Books** : Récupération des jaquettes manquantes et éditions internationales.
+     - **Comic Vine / Metron** : Fascicules et codes UPC US.
+     - **MangaDex / AniList / Wikidata** : Séries japonaises et nombre total de tomes.
+   - Dès qu'un album est résolu par la cascade externe, il est automatiquement enregistré dans notre base D1 pour enrichir définitivement le catalogue commun.
+
+---
+
+### 3.2. Stratégie de Cache Prédictif : « Toute la Série en Local »
+
+> **Règle fondamentale** : Dès qu'un utilisateur possède, scanne ou consulte un tome d'une série, **l'intégralité de la série et de tous ses tomes existants est immédiatement téléchargée et mise en cache dans la base SQLite locale du smartphone.**
+
+#### Pourquoi cette approche est décisive sur le terrain :
+- **Autonomie totale en brocante** : Si l'utilisateur possède déjà le Tome 1 de *Tintin* ou d'*Astérix*, les tomes 2 à 40 sont déjà stockés dans son téléphone. En plein hangar sans aucun réseau, scanner le Tome 7 indiquera instantanément s'il est manquant ou possédé.
+- **« Voir les suites » instantané** : La liste des tomes manquants est calculée localement sans aucun appel réseau.
+- **Économie de bande passante** : Un seul appel groupé (`GET /api/series/cache?series_id=...`) rapatrie en une fraction de seconde la totalité des tomes de la saga, éliminant tout appel ultérieur.
+
+---
+
+### 3.3. Amorçage de la Base Online (Scraping BDthèque & BDvore)
+
+Afin de disposer immédiatement d'un référentiel francophone ultra-complet sans dépendre des temps de réponse d'API tierces :
+
+1. **Extraction Initiale One-Off** :
+   - Script de scraping batch ciblant les séries et albums majeurs sur **BDthèque** et **BDvore** (respect des quotas et temporisation pour éviter tout blocage).
+   - Récupération des métadonnées clés : Titre de série, numéro de tome, titre de l'album, EAN/ISBN, éditeur, année de parution, lien de couverture, nombre total de tomes parus, statut ("En cours" / "Terminée").
+2. **Normalisation & Dédoublonnage** :
+   - Nettoyage des ISBN (format EAN-13 sans tirets).
+   - Alignement des numéros de tomes au format numérique (gestion des hors-séries et intégrales).
+   - Dédoublonnage des séries communes entre BDthèque et BDvore.
+3. **Ingestion dans Cloudflare D1** :
+   - Injection par batch SQL dans les tables `series` et `albums` via Cloudflare Wrangler CLI (`wrangler d1 execute bullix-db --file=seed.sql`) ou via Cloudflare R2 staging dump.
 
 ---
 
@@ -243,9 +280,15 @@ Bullix/
 │   │   ├── sync/
 │   │   │   ├── push.ts             # Traitement batch & LWW D1
 │   │   │   └── pull.ts             # Récupération delta D1
+│   │   ├── series/
+│   │   │   └── cache.ts            # Téléchargement et cache d'une série complète
 │   │   └── lookup/
-│   │       ├── isbn.ts             # Résolution EAN avec cache KV & BnF
+│   │       ├── isbn.ts             # Résolution EAN (D1 prioritaire, cache KV, BnF)
 │   │       └── ocr.ts              # Recherche textuelle intelligente
+├── scripts/
+│   └── seeding/
+│       ├── import_seed.ts          # Script d'import et batching BDthèque/BDvore
+│       └── schema_seed.sql         # Jeu de données d'amorçage
 ├── wrangler.toml                   # Configuration Cloudflare (D1, KV, R2)
 └── schema.sql                      # Schéma SQL initial pour D1
 ```

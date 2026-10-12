@@ -1,4 +1,5 @@
 interface Env {
+  DB: D1Database;
   CACHE_KV: KVNamespace;
 }
 
@@ -16,9 +17,75 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     const cleanIsbn = rawIsbn.replace(/[-\s]/g, '');
-    const cacheKey = `isbn:${cleanIsbn}`;
 
-    // 1. Vérification dans le Cache KV
+    // =========================================================================
+    // 1. RECHERCHE PRIORITAIRE : Base Online Bullix D1 (Pré-remplie BDthèque + BDvore)
+    // =========================================================================
+    if (env.DB) {
+      const albumInD1 = await env.DB.prepare(`
+        SELECT a.id, a.series_id, a.volume_number, a.title, a.isbn, a.authors, a.publisher,
+               a.published_year, a.cover_image_url,
+               s.title AS series_title, s.type AS series_type, s.status AS series_status,
+               s.total_volumes AS series_total_volumes
+        FROM albums a
+        LEFT JOIN series s ON a.series_id = s.id
+        WHERE a.isbn = ?
+        LIMIT 1
+      `)
+        .bind(cleanIsbn)
+        .first<any>();
+
+      if (albumInD1) {
+        // Rapatriement de TOUS les tomes de la série pour le cache prédictif mobile
+        const seriesAlbums = await env.DB.prepare(`
+          SELECT id, series_id, volume_number, title, isbn, cover_image_url, authors, publisher, published_year
+          FROM albums
+          WHERE series_id = ?
+          ORDER BY volume_number ASC
+        `)
+          .bind(albumInD1.series_id)
+          .all();
+
+        return new Response(
+          JSON.stringify({
+            source: 'bullix_d1',
+            album: {
+              id: albumInD1.id,
+              series_id: albumInD1.series_id,
+              volume_number: albumInD1.volume_number,
+              title: albumInD1.title,
+              isbn: albumInD1.isbn,
+              authors: albumInD1.authors,
+              publisher: albumInD1.publisher,
+              published_year: albumInD1.published_year,
+              cover_image_url: albumInD1.cover_image_url,
+            },
+            series: {
+              id: albumInD1.series_id,
+              title: albumInD1.series_title,
+              type: albumInD1.series_type,
+              status: albumInD1.series_status,
+              total_volumes: albumInD1.series_total_volumes,
+            },
+            series_albums: seriesAlbums.results || [],
+            cache_instruction: {
+              action: 'CACHE_ENTIRE_SERIES',
+              series_id: albumInD1.series_id,
+              count: (seriesAlbums.results || []).length,
+            },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+    }
+
+    // =========================================================================
+    // 2. VÉRIFICATION DU CACHE KV (Requêtes récentes)
+    // =========================================================================
+    const cacheKey = `isbn:${cleanIsbn}`;
     if (env.CACHE_KV) {
       const cached = await env.CACHE_KV.get(cacheKey, 'json');
       if (cached) {
@@ -29,7 +96,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // 2. Cascade 1 : BnF SRU API (France - Dépôt légal officiel)
+    // =========================================================================
+    // 3. CASCADE SECOURS 1 : BnF SRU API (Dépôt légal officiel FR)
+    // =========================================================================
     const bnfUrl = `https://catalogue.bnf.fr/api/SRU?version=1.2&operation=searchRetrieve&query=bib.isbn%20all%20%22${cleanIsbn}%22&recordSchema=dublincore&maximumRecords=1`;
     try {
       const bnfResp = await fetch(bnfUrl);
@@ -52,7 +121,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           };
 
           if (env.CACHE_KV) {
-            await env.CACHE_KV.put(cacheKey, JSON.stringify(result), { expirationTtl: 86400 * 30 }); // 30 jours
+            await env.CACHE_KV.put(cacheKey, JSON.stringify(result), { expirationTtl: 86400 * 30 });
           }
 
           return new Response(JSON.stringify({ source: 'bnf', data: result }), {
@@ -62,10 +131,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         }
       }
     } catch (e) {
-      // Fallback vers Open Library
+      // Poursuite vers Open Library en cas d'erreur
     }
 
-    // 3. Cascade 2 : Open Library API
+    // =========================================================================
+    // 4. CASCADE SECOURS 2 : Open Library API
+    // =========================================================================
     const openLibUrl = `https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`;
     const openLibResp = await fetch(openLibUrl);
     if (openLibResp.ok) {
