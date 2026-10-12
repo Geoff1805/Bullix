@@ -170,10 +170,17 @@ if (-not $SkipUploadR2 -and $env:CLOUDFLARE_API_TOKEN -and $env:CLOUDFLARE_ACCOU
             } else {
                 Write-Host "Base Cloudflare D1 deja a jour (aucun nouvel album a inserer lors de ce passage)." -ForegroundColor Green
             }
+            Remove-Item -Path $incSql -Force -ErrorAction SilentlyContinue
         } else {
             Write-Host "Injection dans Cloudflare D1 (bullix-db)..." -ForegroundColor Yellow
             npx wrangler d1 execute bullix-db --remote --file=generated_seed.sql
         }
+    }
+
+    # Nettoyage systématique du dossier temporaire d'upload
+    $tmpDir = Join-Path $projectRoot ".tmp_r2_upload"
+    if (Test-Path $tmpDir) {
+        Remove-Item -Path $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 } else {
     Write-Host ""
