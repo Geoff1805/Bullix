@@ -20,13 +20,13 @@
     }
     header {
       border-bottom: 1px solid var(--pico-muted-border-color);
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
     }
     .badge {
       display: inline-block;
       padding: 0.2rem 0.5rem;
       border-radius: 4px;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: bold;
     }
     .badge-owned { background-color: #2e7d32; color: #fff; }
@@ -34,32 +34,147 @@
     .badge-location { background-color: #0288d1; color: #fff; }
     .badge-genre { background-color: #6a1b9a; color: #fff; }
     .badge-tech { background-color: #37474f; color: #eceff1; }
+
+    /* Navigation par onglets */
+    .tab-nav {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid var(--pico-muted-border-color);
+    }
+    .tab-btn {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: var(--pico-color);
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 0;
+      margin-bottom: -2px;
+    }
+    .tab-btn.active {
+      border-bottom-color: var(--pico-primary);
+      color: var(--pico-primary);
+    }
+
+    /* Grille responsive de cartes d'album */
+    .album-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.2rem;
+    }
     .album-card {
       display: flex;
-      gap: 1rem;
+      flex-direction: column;
       border: 1px solid var(--pico-muted-border-color);
       padding: 1rem;
       border-radius: 8px;
-      margin-bottom: 1rem;
       background: var(--pico-card-background-color);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      position: relative;
+    }
+    .album-header {
+      display: flex;
+      gap: 0.8rem;
+      margin-bottom: 0.8rem;
     }
     .album-cover {
-      width: 70px;
-      height: 100px;
+      width: 75px;
+      height: 105px;
       object-fit: cover;
       border-radius: 4px;
-      background: #333;
+      background: #2a2a2a;
       flex-shrink: 0;
     }
-    .search-stats {
-      font-size: 0.85rem;
+    .album-meta {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      overflow: hidden;
+    }
+    .album-meta h4 {
+      margin: 0 0 0.3rem 0;
+      font-size: 1rem;
+      line-height: 1.25;
+    }
+    .album-meta h5 {
+      margin: 0 0 0.4rem 0;
+      font-size: 0.88rem;
       color: var(--pico-muted-color);
-      margin-bottom: 1rem;
+      font-weight: normal;
+    }
+    .album-details {
+      font-size: 0.8rem;
+      color: var(--pico-muted-color);
+      margin-bottom: 0.8rem;
+      line-height: 1.35;
+      flex-grow: 1;
+    }
+    .album-actions {
+      margin-top: auto;
+      display: flex;
+      gap: 0.5rem;
+    }
+    .album-actions button {
+      width: 100%;
+      padding: 0.45rem 0.6rem;
+      font-size: 0.85rem;
+      margin: 0;
+    }
+
+    /* Pagination */
+    .pagination-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
+      gap: 1rem;
+      margin: 1.5rem 0;
+      padding: 0.8rem 1rem;
+      background: var(--pico-card-background-color);
+      border: 1px solid var(--pico-muted-border-color);
+      border-radius: 6px;
+    }
+    .pagination-controls {
+      display: flex;
+      align-items: center;
       gap: 0.5rem;
+    }
+    .pagination-controls button {
+      padding: 0.35rem 0.8rem;
+      font-size: 0.85rem;
+      margin: 0;
+    }
+
+    /* Toast Notification */
+    #toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      pointer-events: none;
+    }
+    .toast {
+      padding: 0.8rem 1.2rem;
+      border-radius: 6px;
+      color: #fff;
+      font-weight: 500;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      animation: slideIn 0.25s ease-out;
+      pointer-events: auto;
+    }
+    .toast-success { background-color: #2e7d32; }
+    .toast-info { background-color: #0288d1; }
+    .toast-warn { background-color: #f57c00; }
+    @keyframes slideIn {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
     }
   </style>
 </head>
@@ -70,58 +185,114 @@
         <li><strong>📚 Bullix</strong></li>
       </ul>
       <ul>
-        <li><a href="#collection-section">Ma Collection</a></li>
-        <li><a href="#lookup-section">Catalogue Global D1</a></li>
+        <li><span class="badge badge-tech">Cloudflare D1 + MiniSearch</span></li>
       </ul>
     </nav>
   </header>
 
+  <!-- Onglets principaux -->
+  <div class="tab-nav">
+    <button id="tab-collection-btn" class="tab-btn active" onclick="switchTab('collection')">
+      📖 Ma BDthèque (<span id="collection-count-badge">0</span>)
+    </button>
+    <button id="tab-catalog-btn" class="tab-btn" onclick="switchTab('catalog')">
+      🌐 Catalogue Cloudflare D1
+    </button>
+  </div>
+
   <main>
-    <section id="collection-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-        <h3>📖 Ma Collection</h3>
-        <button class="outline" onclick="loadSampleData()">Réinitialiser Données</button>
+    <!-- SECTION 1 : MA BDTHÈQUE (OFFLINE-FIRST + MINISEARCH) -->
+    <section id="section-collection">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+          <h3 style="margin: 0;">📖 Mes Bandes Dessinées</h3>
+          <small class="badge badge-tech">Recherche instantanée plein-texte & fuzzy search via MiniSearch</small>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="outline secondary" style="padding: 0.35rem 0.7rem; font-size: 0.8rem; margin: 0;" onclick="resetToSampleCollection()">Réinitialiser Données</button>
+        </div>
       </div>
 
-      <!-- Recherche standard MiniSearch (Instant, Fuzzy, BM25) -->
+      <!-- Recherche instantanée MiniSearch -->
       <fieldset role="group">
         <input 
           type="search" 
           id="collection-search-input" 
-          placeholder="🔎 Recherche instantanée (titre, série, auteur, éditeur, casier, ISBN...)" 
+          placeholder="🔎 Rechercher dans ma BDthèque (titre, série, auteur, éditeur, casier, ISBN...)" 
           oninput="filterCollection()" 
         />
         <button type="button" class="secondary" onclick="clearCollectionSearch()">Effacer</button>
       </fieldset>
 
-      <div class="search-stats">
+      <div style="margin-bottom: 1rem; font-size: 0.85rem; color: var(--pico-muted-color);">
         <span id="collection-stats">Chargement...</span>
-        <span class="badge badge-tech">⚡ Moteur standard : MiniSearch (Index inversé & Fuzzy search)</span>
       </div>
 
-      <div id="collection-list">
-        <p><em>Chargement de votre collection...</em></p>
-      </div>
+      <div id="collection-list" class="album-grid"></div>
     </section>
 
-    <hr style="margin: 2.5rem 0;" />
+    <!-- SECTION 2 : CATALOGUE GLOBAL CLOUDFLARE D1 (PAGINÉ) -->
+    <section id="section-catalog" style="display: none;">
+      <div style="margin-bottom: 1rem;">
+        <h3 style="margin-bottom: 0.2rem;">🌐 Catalogue Central Cloudflare D1</h3>
+        <p style="margin: 0;"><small>Parcourez l'intégralité du catalogue hébergé dans Cloudflare D1 et ajoutez n'importe quel album à votre BDthèque en 1 clic.</small></p>
+      </div>
 
-    <section id="lookup-section">
-      <h3>🌐 Catalogue Distant Cloudflare D1 (Recherche globale / ISBN)</h3>
-      <p><small>Interroge la base centrale D1 et les connecteurs BnF / Open Library lorsque le réseau est disponible.</small></p>
-      <form id="lookup-form" onsubmit="handleLookup(event)">
+      <!-- Barre de recherche catalogue D1 -->
+      <form onsubmit="handleCatalogSearch(event)">
         <fieldset role="group">
-          <input type="text" id="lookup-input" placeholder="Entrez un titre, série, auteur ou code-barres ISBN..." required />
-          <input type="submit" value="Interroger D1" />
+          <input 
+            type="search" 
+            id="catalog-search-input" 
+            placeholder="🔎 Filtrer le catalogue D1 (Astérix, Tintin, One Piece, Hergé, ISBN...)" 
+          />
+          <button type="submit">Rechercher</button>
+          <button type="button" class="secondary" onclick="resetCatalogSearch()">Tout voir</button>
         </fieldset>
       </form>
-      <div id="lookup-result"></div>
+
+      <!-- Barre de pagination supérieure -->
+      <div class="pagination-bar">
+        <div style="font-size: 0.85rem; color: var(--pico-muted-color);">
+          <span id="catalog-total-info">Chargement du catalogue...</span>
+        </div>
+        <div class="pagination-controls">
+          <label style="margin: 0; font-size: 0.85rem; display: flex; align-items: center; gap: 0.3rem;">
+            Par page :
+            <select id="catalog-limit-select" onchange="changeCatalogLimit(this.value)" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; margin: 0; width: auto;">
+              <option value="12">12</option>
+              <option value="24" selected>24</option>
+              <option value="48">48</option>
+            </select>
+          </label>
+          <button class="outline" id="catalog-prev-btn" onclick="prevCatalogPage()" disabled>◀ Précédente</button>
+          <span id="catalog-page-indicator" style="font-size: 0.85rem; font-weight: bold; min-width: 80px; text-align: center;">Page 1</span>
+          <button class="outline" id="catalog-next-btn" onclick="nextCatalogPage()" disabled>Suivante ▶</button>
+        </div>
+      </div>
+
+      <!-- Conteneur d'affichage du catalogue -->
+      <div id="catalog-content">
+        <div id="catalog-grid" class="album-grid"></div>
+      </div>
+
+      <!-- Barre de pagination inférieure -->
+      <div class="pagination-bar" id="catalog-pagination-bottom">
+        <button class="outline" id="catalog-prev-btn-2" onclick="prevCatalogPage()" disabled>◀ Précédente</button>
+        <span id="catalog-page-indicator-2" style="font-size: 0.85rem; font-weight: bold;">Page 1</span>
+        <button class="outline" id="catalog-next-btn-2" onclick="nextCatalogPage()" disabled>Suivante ▶</button>
+      </div>
     </section>
   </main>
 
+  <!-- Conteneur Toasts -->
+  <div id="toast-container"></div>
+
   <script>
-    // Données de collection d'exemple avec identifiant unique requis par MiniSearch
-    let myCollection = [
+    const STORAGE_KEY = 'bullix_my_collection_v1';
+
+    // Données d'exemple initiales si localStorage vide
+    const initialSampleData = [
       {
         id: "bd-1",
         seriesTitle: "Astérix",
@@ -130,7 +301,7 @@
         authors: "René Goscinny, Albert Uderzo",
         publisher: "Dargaud",
         publishedYear: 1961,
-        locationName: "Salon › Bibliothèque › Casier n°1",
+        locationName: "Salon › Bibliothèque",
         condition: "Très bon",
         editionInfo: "Édition Originale",
         seriesType: "Franco-belge",
@@ -145,7 +316,7 @@
         authors: "Juan Díaz Canales, Juanjo Guarnido",
         publisher: "Dargaud",
         publishedYear: 2000,
-        locationName: "Salon › Bibliothèque › Casier n°2",
+        locationName: "Salon › Bibliothèque",
         condition: "Neuf",
         editionInfo: "Tirage courant",
         seriesType: "Franco-belge",
@@ -160,7 +331,7 @@
         authors: "Hergé",
         publisher: "Casterman",
         publishedYear: 1946,
-        locationName: "Chambre › Étagère BD › Casier A",
+        locationName: "Chambre › Casier A",
         condition: "Bon",
         editionInfo: "Fac-similé",
         seriesType: "Franco-belge",
@@ -184,13 +355,75 @@
       }
     ];
 
+    // Chargement de la collection depuis localStorage
+    function loadCollectionFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.warn("Échec lecture localStorage :", e);
+      }
+      return [...initialSampleData];
+    }
+
+    function saveCollectionToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(myCollection));
+      } catch (e) {
+        console.warn("Échec écriture localStorage :", e);
+      }
+    }
+
+    let myCollection = loadCollectionFromStorage();
     let collectionMap = new Map();
     let miniSearchInstance = null;
+
+    // Toast Notification
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Gestion des onglets
+    function switchTab(tab) {
+      const collSection = document.getElementById('section-collection');
+      const catSection = document.getElementById('section-catalog');
+      const collBtn = document.getElementById('tab-collection-btn');
+      const catBtn = document.getElementById('tab-catalog-btn');
+
+      if (tab === 'collection') {
+        collSection.style.display = 'block';
+        catSection.style.display = 'none';
+        collBtn.classList.add('active');
+        catBtn.classList.remove('active');
+      } else {
+        collSection.style.display = 'none';
+        catSection.style.display = 'block';
+        collBtn.classList.remove('active');
+        catBtn.classList.add('active');
+        if (catalogState.albums.length === 0) {
+          fetchCatalog(1);
+        }
+      }
+    }
 
     // Initialisation du moteur de recherche standard MiniSearch
     function initSearchEngine() {
       collectionMap.clear();
       myCollection.forEach(item => collectionMap.set(item.id, item));
+      updateCollectionBadge();
 
       if (typeof MiniSearch !== 'undefined') {
         miniSearchInstance = new MiniSearch({
@@ -206,14 +439,17 @@
               publisher: 1.5,
               locationName: 1.2
             },
-            fuzzy: 0.2, // Tolérance aux fautes de frappe (Levenshtein)
-            prefix: true // Correspondance par préfixe au fur et à mesure de la frappe
+            fuzzy: 0.2,
+            prefix: true
           }
         });
         miniSearchInstance.addAll(myCollection);
-      } else {
-        console.warn("MiniSearch non chargé, utilisation du mode de recherche de secours.");
       }
+    }
+
+    function updateCollectionBadge() {
+      const badge = document.getElementById('collection-count-badge');
+      if (badge) badge.textContent = myCollection.length;
     }
 
     function escapeHtml(text) {
@@ -226,6 +462,69 @@
         .replace(/'/g, "&#039;");
     }
 
+    function isAlbumInCollection(album) {
+      const albIsbn = album.isbn ? album.isbn.replace(/[-\s]/g, '') : null;
+      const albId = album.album_id || album.id;
+      const albTitle = (album.album_title || album.title || '').trim().toLowerCase();
+      const albSeries = (album.series_title || album.seriesTitle || '').trim().toLowerCase();
+
+      return myCollection.some(item => {
+        if (albIsbn && item.isbn && item.isbn.replace(/[-\s]/g, '') === albIsbn) return true;
+        if (albId && item.id === albId) return true;
+        if (albTitle && item.albumTitle.toLowerCase() === albTitle && item.seriesTitle.toLowerCase() === albSeries) return true;
+        return false;
+      });
+    }
+
+    // Ajout / Retrait en 1 clic dans la BDthèque
+    function toggleAlbumInCollection(albumData) {
+      const albIsbn = albumData.isbn ? albumData.isbn.replace(/[-\s]/g, '') : null;
+      const albId = albumData.album_id || albumData.id;
+      const albTitle = albumData.album_title || albumData.title || 'Album sans titre';
+      const albSeries = albumData.series_title || albumData.seriesTitle || 'Sans série';
+
+      const existingIndex = myCollection.findIndex(item => {
+        if (albIsbn && item.isbn && item.isbn.replace(/[-\s]/g, '') === albIsbn) return true;
+        if (albId && item.id === albId) return true;
+        if (item.albumTitle.toLowerCase() === albTitle.toLowerCase() && item.seriesTitle.toLowerCase() === albSeries.toLowerCase()) return true;
+        return false;
+      });
+
+      if (existingIndex >= 0) {
+        // Retirer
+        const removed = myCollection.splice(existingIndex, 1)[0];
+        saveCollectionToStorage();
+        initSearchEngine();
+        filterCollection();
+        renderCatalog();
+        showToast(`"${removed.albumTitle}" retiré de votre BDthèque`, 'info');
+      } else {
+        // Ajouter en 1-clic
+        const newItem = {
+          id: albId || 'alb_' + Date.now(),
+          seriesTitle: albSeries,
+          albumTitle: albTitle,
+          volumeNumber: albumData.volume_number || 1,
+          authors: albumData.authors || 'Non renseigné',
+          publisher: albumData.publisher || 'Non renseigné',
+          publishedYear: albumData.published_year || new Date().getFullYear(),
+          locationName: 'À classer',
+          condition: 'Très bon',
+          editionInfo: 'Tirage standard',
+          seriesType: albumData.series_type || 'Franco-belge',
+          isbn: albumData.isbn || '',
+          coverUrl: albumData.cover_image_url || (albumData.isbn ? `https://covers.openlibrary.org/b/isbn/${albumData.isbn}-M.jpg` : '')
+        };
+        myCollection.unshift(newItem);
+        saveCollectionToStorage();
+        initSearchEngine();
+        filterCollection();
+        renderCatalog();
+        showToast(`✅ "${newItem.albumTitle}" ajouté en 1-clic à votre BDthèque !`, 'success');
+      }
+    }
+
+    // Affichage de la collection locale
     function renderCollection(items, query = '') {
       const list = document.getElementById('collection-list');
       const stats = document.getElementById('collection-stats');
@@ -233,38 +532,43 @@
 
       if (items.length === 0) {
         list.innerHTML = `
-          <article style="text-align: center; padding: 1.5rem;">
-            <p><em>Aucun album trouvé dans votre collection locale pour "<strong>${escapeHtml(query)}</strong>".</em></p>
-            <button class="outline" onclick="triggerRemoteLookup('${escapeHtml(query)}')">
-              🌐 Rechercher "${escapeHtml(query)}" dans le Catalogue Distant D1
+          <div style="grid-column: 1 / -1; text-align: center; padding: 2.5rem 1rem; border: 1px dashed var(--pico-muted-border-color); border-radius: 8px;">
+            <p><em>Aucun album trouvé dans votre BDthèque pour "<strong>${escapeHtml(query)}</strong>".</em></p>
+            <button class="outline" onclick="exploreCatalogForQuery('${escapeHtml(query)}')">
+              🌐 Chercher "${escapeHtml(query)}" dans le Catalogue D1
             </button>
-          </article>
+          </div>
         `;
         return;
       }
 
       list.innerHTML = items.map(item => `
         <div class="album-card">
-          <img class="album-cover" src="${item.coverUrl}" alt="${escapeHtml(item.albumTitle)}" onerror="this.style.display='none'" />
-          <div>
-            <h4>${escapeHtml(item.seriesTitle)} — Tome ${item.volumeNumber} : ${escapeHtml(item.albumTitle)}</h4>
-            <p style="margin-bottom: 0.3rem;">
-              <span class="badge badge-owned">Possédé</span>
-              <span class="badge badge-location">${escapeHtml(item.locationName)}</span>
-              <span class="badge badge-genre">${escapeHtml(item.seriesType)}</span>
-            </p>
-            <small>
-              <strong>Auteurs :</strong> ${escapeHtml(item.authors)} • 
-              <strong>Éditeur :</strong> ${escapeHtml(item.publisher)} (${item.publishedYear}) • 
-              <strong>État :</strong> ${escapeHtml(item.condition)} • 
-              <strong>ISBN :</strong> ${escapeHtml(item.isbn)}
-            </small>
+          <div class="album-header">
+            <img class="album-cover" src="${item.coverUrl}" alt="${escapeHtml(item.albumTitle)}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'75\\' height=\\'105\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%23333\\'/><text x=\\'50%\\' y=\\'50%\\' fill=\\'%23aaa\\' font-size=\\'12\\' text-anchor=\\'middle\\' dy=\\'.3em\\'>BD</text></svg>'"/>
+            <div class="album-meta">
+              <h4>${escapeHtml(item.seriesTitle)}</h4>
+              <h5>Tome ${item.volumeNumber} : ${escapeHtml(item.albumTitle)}</h5>
+              <div style="margin-top: auto;">
+                <span class="badge badge-owned">Possédé</span>
+                <span class="badge badge-location">${escapeHtml(item.locationName)}</span>
+              </div>
+            </div>
+          </div>
+          <div class="album-details">
+            <strong>Auteurs :</strong> ${escapeHtml(item.authors)}<br/>
+            <strong>Éditeur :</strong> ${escapeHtml(item.publisher)} (${item.publishedYear})<br/>
+            <strong>ISBN :</strong> ${escapeHtml(item.isbn || 'Non renseigné')}
+          </div>
+          <div class="album-actions">
+            <button class="outline secondary" onclick="toggleAlbumInCollection({ id: '${escapeHtml(item.id)}', album_title: '${escapeHtml(item.albumTitle)}', series_title: '${escapeHtml(item.seriesTitle)}' })">
+              🗑 Retirer de ma BDthèque
+            </button>
           </div>
         </div>
       `).join('');
     }
 
-    // Filtrage instantané via MiniSearch
     function filterCollection() {
       const query = document.getElementById('collection-search-input').value.trim();
       if (!query) {
@@ -273,7 +577,6 @@
       }
 
       if (miniSearchInstance) {
-        // Utilisation du moteur standard MiniSearch
         const searchResults = miniSearchInstance.search(query, {
           fuzzy: 0.2,
           prefix: true,
@@ -289,7 +592,6 @@
         const matchedItems = searchResults.map(r => collectionMap.get(r.id)).filter(Boolean);
         renderCollection(matchedItems, query);
       } else {
-        // Fallback simple
         const q = query.toLowerCase();
         const matchedItems = myCollection.filter(item =>
           Object.values(item).some(val => String(val).toLowerCase().includes(q))
@@ -303,86 +605,230 @@
       filterCollection();
     }
 
-    function loadSampleData() {
-      clearCollectionSearch();
-      initSearchEngine();
-      renderCollection(myCollection);
-    }
-
-    function triggerRemoteLookup(query) {
-      const input = document.getElementById('lookup-input');
-      input.value = query;
-      document.getElementById('lookup-section').scrollIntoView({ behavior: 'smooth' });
-      document.getElementById('lookup-form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-    }
-
-    async function handleLookup(e) {
-      e.preventDefault();
-      const rawInput = document.getElementById('lookup-input').value.trim();
-      const container = document.getElementById('lookup-result');
-      container.innerHTML = '<p aria-busy="true">Interrogation du catalogue Cloudflare D1 en cours...</p>';
-
-      const isIsbn = /^[0-9xX\- ]{9,17}$/.test(rawInput) && rawInput.replace(/[-\s]/g, '').length >= 10;
-
-      try {
-        if (isIsbn) {
-          const isbn = rawInput.replace(/[-\s]/g, '');
-          const res = await fetch(`/api/lookup/isbn?isbn=${encodeURIComponent(isbn)}`);
-          if (!res.ok) {
-            container.innerHTML = `<article style="border-left: 4px solid #d32f2f;"><strong>Non répertorié</strong> : Aucun album trouvé dans D1 pour l'ISBN ${escapeHtml(isbn)}.</article>`;
-            return;
-          }
-          const data = await res.json();
-          const album = data.album || data.data;
-          const series = data.series;
-          const seriesAlbums = data.series_albums || [];
-
-          container.innerHTML = `
-            <article style="border-left: 4px solid #2e7d32;">
-              <h4>${series ? escapeHtml(series.title) : 'Album'} — Tome ${album.volume_number || 1} : ${escapeHtml(album.title || 'Sans titre')}</h4>
-              <p><strong>Auteurs :</strong> ${escapeHtml(album.authors || 'Non renseigné')} | <strong>Éditeur :</strong> ${escapeHtml(album.publisher || 'Non renseigné')}</p>
-              <p><span class="badge badge-owned">Source : ${escapeHtml(data.source || 'D1')}</span> ${seriesAlbums.length ? `<span class="badge badge-location">${seriesAlbums.length} tomes de la série en cache</span>` : ''}</p>
-            </article>
-          `;
-        } else {
-          const res = await fetch(`/api/lookup/search?q=${encodeURIComponent(rawInput)}`);
-          if (!res.ok) {
-            container.innerHTML = `<article style="border-left: 4px solid #d32f2f;">Erreur serveur lors de la recherche dans le catalogue.</article>`;
-            return;
-          }
-          const data = await res.json();
-          const results = data.results || [];
-          if (results.length === 0) {
-            container.innerHTML = `<article style="border-left: 4px solid var(--pico-muted-color);">Aucun album trouvé dans le catalogue distant pour "<strong>${escapeHtml(rawInput)}</strong>".</article>`;
-            return;
-          }
-
-          container.innerHTML = `
-            <article style="border-left: 4px solid #2e7d32;">
-              <h5>${results.length} résultat(s) trouvé(s) pour "${escapeHtml(rawInput)}" :</h5>
-              ${results.slice(0, 10).map(item => `
-                <div style="margin-bottom: 0.8rem; border-bottom: 1px solid var(--pico-muted-border-color); padding-bottom: 0.5rem;">
-                  <strong>${escapeHtml(item.series_title || 'Série')}</strong> — Tome ${item.volume_number} : <em>${escapeHtml(item.album_title || 'Sans titre')}</em><br/>
-                  <small>${escapeHtml(item.authors || 'Auteurs non renseignés')} • ${escapeHtml(item.publisher || 'Éditeur non renseigné')} (${item.published_year || 'N/C'}) • ISBN : ${escapeHtml(item.isbn || 'N/C')}</small>
-                </div>
-              `).join('')}
-            </article>
-          `;
-        }
-      } catch (err) {
-        container.innerHTML = `
-          <article style="border-left: 4px solid #f57c00; background: rgba(245, 124, 0, 0.05);">
-            <strong>Mode Hors-Ligne / Serveur distant non connecté</strong>
-            <p style="margin-bottom: 0; font-size: 0.9rem;">
-              L'API Cloudflare D1 n'est pas joignable (ouverture locale en fichier statique ou absence de réseau).<br/>
-              <em>Votre recherche locale sur la collection avec MiniSearch continue de fonctionner à 100 %.</em>
-            </p>
-          </article>
-        `;
+    function resetToSampleCollection() {
+      if (confirm("Réinitialiser votre BDthèque avec les données d'exemple ?")) {
+        myCollection = [...initialSampleData];
+        saveCollectionToStorage();
+        clearCollectionSearch();
+        initSearchEngine();
+        renderCollection(myCollection);
+        renderCatalog();
+        showToast("BDthèque réinitialisée avec les exemples", "info");
       }
     }
 
-    // Démarrage initial
+    function exploreCatalogForQuery(q) {
+      switchTab('catalog');
+      document.getElementById('catalog-search-input').value = q;
+      catalogState.query = q;
+      fetchCatalog(1);
+    }
+
+    // ============================================================================
+    // GESTION DU CATALOGUE CLOUDFLARE D1 (PAGINATION ET AJOUT 1-CLIC)
+    // ============================================================================
+
+    let catalogState = {
+      page: 1,
+      limit: 24,
+      total: 0,
+      totalPages: 1,
+      query: '',
+      albums: [],
+      loading: false,
+      error: null
+    };
+
+    // Données de secours si Cloudflare D1 est testé hors-ligne ou non initialisé
+    function getFallbackCatalog() {
+      return [
+        { album_id: 'alb_ast_01', series_id: 's_ast', series_title: 'Astérix', volume_number: 1, album_title: 'Astérix le Gaulois', isbn: '9782012101333', authors: 'Goscinny, Uderzo', publisher: 'Dargaud', published_year: 1961, cover_image_url: 'https://covers.openlibrary.org/b/isbn/9782012101333-M.jpg', series_type: 'Franco-belge' },
+        { album_id: 'alb_ast_02', series_id: 's_ast', series_title: 'Astérix', volume_number: 2, album_title: 'La Serpe d\'or', isbn: '9782012101340', authors: 'Goscinny, Uderzo', publisher: 'Dargaud', published_year: 1962, cover_image_url: 'https://covers.openlibrary.org/b/isbn/9782012101340-M.jpg', series_type: 'Franco-belge' },
+        { album_id: 'alb_ast_03', series_id: 's_ast', series_title: 'Astérix', volume_number: 3, album_title: 'Astérix et les Goths', isbn: '9782012101357', authors: 'Goscinny, Uderzo', publisher: 'Dargaud', published_year: 1963, cover_image_url: 'https://covers.openlibrary.org/b/isbn/9782012101357-M.jpg', series_type: 'Franco-belge' },
+        { album_id: 'alb_ast_04', series_id: 's_ast', series_title: 'Astérix', volume_number: 4, album_title: 'Astérix Gladiateur', isbn: '9782012101364', authors: 'Goscinny, Uderzo', publisher: 'Dargaud', published_year: 1964, cover_image_url: 'https://covers.openlibrary.org/b/isbn/9782012101364-M.jpg', series_type: 'Franco-belge' },
+        { album_id: 'alb_ast_40', series_id: 's_ast', series_title: 'Astérix', volume_number: 40, album_title: 'L\'Iris blanc', isbn: '9782069975413', authors: 'Fabcaro, Conrad', publisher: 'Albert René', published_year: 2023, cover_image_url: 'https://covers.openlibrary.org/b/isbn/9782069975413-M.jpg', series_type: 'Franco-belge' },
+        { album_id: 'alb_bs_01', series_id: 's_bs', series_title: 'Blacksad', volume_number: 1, album_title: 'Quelque part entre les ombres', isbn: '9782205049657', authors: 'Díaz Canales, Guarnido', publisher: 'Dargaud', published_year: 2000, cover_image_url: 'https://covers.openlibrary.org/b/isbn/9782205049657-M.jpg', series_type: 'Franco-belge' },
+        { album_id: 'alb_bs_02', series_id: 's_bs', series_title: 'Blacksad', volume_number: 2, album_title: 'Arctic-Nation', isbn: '9782205053470', authors: 'Díaz Canales, Guarnido', publisher: 'Dargaud', published_year: 2003, cover_image_url: 'https://covers.openlibrary.org/b/isbn/9782205053470-M.jpg', series_type: 'Franco-belge' },
+        { album_id: 'alb_bs_03', series_id: 's_bs', series_title: 'Blacksad', volume_number: 3, album_title: 'Âme Rouge', isbn: '9782205055641', authors: 'Díaz Canales, Guarnido', publisher: 'Dargaud', published_year: 2005, cover_image_url: 'https://covers.openlibrary.org/b/isbn/9782205055641-M.jpg', series_type: 'Franco-belge' },
+        { album_id: 'alb_tin_01', series_id: 's_tin', series_title: 'Tintin', volume_number: 4, album_title: 'Les Cigares du Pharaon', isbn: '9782203001039', authors: 'Hergé', publisher: 'Casterman', published_year: 1934, cover_image_url: 'https://covers.openlibrary.org/b/isbn/9782203001039-M.jpg', series_type: 'Franco-belge' },
+        { album_id: 'alb_tin_02', series_id: 's_tin', series_title: 'Tintin', volume_number: 5, album_title: 'Le Lotus bleu', isbn: '9782203001046', authors: 'Hergé', publisher: 'Casterman', published_year: 1936, cover_image_url: 'https://covers.openlibrary.org/b/isbn/9782203001046-M.jpg', series_type: 'Franco-belge' },
+        { album_id: 'alb_op_01', series_id: 's_op', series_title: 'One Piece', volume_number: 1, album_title: 'Romance Dawn', isbn: '9782723433358', authors: 'Eiichiro Oda', publisher: 'Glénat', published_year: 2000, cover_image_url: 'https://covers.openlibrary.org/b/isbn/9782723433358-M.jpg', series_type: 'Manga' },
+        { album_id: 'alb_op_02', series_id: 's_op', series_title: 'One Piece', volume_number: 2, album_title: 'Luffy versus la bande à Baggy', isbn: '9782723434775', authors: 'Eiichiro Oda', publisher: 'Glénat', published_year: 2001, cover_image_url: 'https://covers.openlibrary.org/b/isbn/9782723434775-M.jpg', series_type: 'Manga' }
+      ];
+    }
+
+    async function fetchCatalog(page = 1) {
+      catalogState.loading = true;
+      catalogState.page = page;
+      renderCatalog();
+
+      try {
+        const qParam = catalogState.query ? `&q=${encodeURIComponent(catalogState.query)}` : '';
+        const res = await fetch(`/api/catalog?page=${catalogState.page}&limit=${catalogState.limit}${qParam}`);
+        
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (data.albums && data.albums.length > 0) {
+          catalogState.albums = data.albums;
+          catalogState.total = data.total || data.albums.length;
+          catalogState.totalPages = data.totalPages || Math.ceil(catalogState.total / catalogState.limit) || 1;
+          catalogState.error = null;
+        } else if (data.notice || data.total === 0) {
+          // Si D1 est vide ou notice, utiliser le fallback de démo
+          applyFallbackCatalog();
+        }
+      } catch (err) {
+        console.warn("API D1 inaccessible, bascule sur les données locales du catalogue :", err.message);
+        applyFallbackCatalog();
+      } finally {
+        catalogState.loading = false;
+        renderCatalog();
+      }
+    }
+
+    function applyFallbackCatalog() {
+      let allFallback = getFallbackCatalog();
+      if (catalogState.query) {
+        const q = catalogState.query.toLowerCase();
+        allFallback = allFallback.filter(a => 
+          (a.album_title && a.album_title.toLowerCase().includes(q)) ||
+          (a.series_title && a.series_title.toLowerCase().includes(q)) ||
+          (a.authors && a.authors.toLowerCase().includes(q)) ||
+          (a.isbn && a.isbn.includes(q))
+        );
+      }
+      catalogState.total = allFallback.length;
+      catalogState.totalPages = Math.max(1, Math.ceil(catalogState.total / catalogState.limit));
+      const start = (catalogState.page - 1) * catalogState.limit;
+      catalogState.albums = allFallback.slice(start, start + catalogState.limit);
+      catalogState.error = "Mode démo / Hors-ligne (D1 distant non connecté ou vide)";
+    }
+
+    function renderCatalog() {
+      const grid = document.getElementById('catalog-grid');
+      const totalInfo = document.getElementById('catalog-total-info');
+      const prevBtn = document.getElementById('catalog-prev-btn');
+      const nextBtn = document.getElementById('catalog-next-btn');
+      const prevBtn2 = document.getElementById('catalog-prev-btn-2');
+      const nextBtn2 = document.getElementById('catalog-next-btn-2');
+      const pageIndicator = document.getElementById('catalog-page-indicator');
+      const pageIndicator2 = document.getElementById('catalog-page-indicator-2');
+
+      const isFirst = catalogState.page <= 1;
+      const isLast = catalogState.page >= catalogState.totalPages;
+
+      prevBtn.disabled = isFirst || catalogState.loading;
+      prevBtn2.disabled = isFirst || catalogState.loading;
+      nextBtn.disabled = isLast || catalogState.loading;
+      nextBtn2.disabled = isLast || catalogState.loading;
+
+      pageIndicator.textContent = `Page ${catalogState.page} / ${catalogState.totalPages}`;
+      pageIndicator2.textContent = `Page ${catalogState.page} / ${catalogState.totalPages}`;
+
+      const startIdx = catalogState.total === 0 ? 0 : (catalogState.page - 1) * catalogState.limit + 1;
+      const endIdx = Math.min(catalogState.page * catalogState.limit, catalogState.total);
+      
+      totalInfo.innerHTML = `
+        <strong>${catalogState.total}</strong> album(s) au catalogue 
+        ${catalogState.total > 0 ? `(albums ${startIdx} à ${endIdx})` : ''}
+        ${catalogState.error ? ` <span class="badge" style="background:#e65100;">${catalogState.error}</span>` : ''}
+      `;
+
+      if (catalogState.loading) {
+        grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 3rem;"><p aria-busy="true">Chargement des albums depuis Cloudflare D1...</p></div>';
+        return;
+      }
+
+      if (catalogState.albums.length === 0) {
+        grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 2rem;"><em>Aucun album trouvé dans le catalogue correspondant aux critères.</em></div>';
+        return;
+      }
+
+      // Rendu des cartes d'album avec bouton 1-clic
+      grid.innerHTML = catalogState.albums.map((album, idx) => {
+        const inCollection = isAlbumInCollection(album);
+        const encodedAlbum = encodeURIComponent(JSON.stringify(album));
+
+        return `
+          <div class="album-card">
+            <div class="album-header">
+              <img class="album-cover" src="${album.cover_image_url || ''}" alt="${escapeHtml(album.album_title || '')}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'75\\' height=\\'105\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%23333\\'/><text x=\\'50%\\' y=\\'50%\\' fill=\\'%23aaa\\' font-size=\\'12\\' text-anchor=\\'middle\\' dy=\\'.3em\\'>BD</text></svg>'"/>
+              <div class="album-meta">
+                <h4>${escapeHtml(album.series_title || 'Série')}</h4>
+                <h5>Tome ${album.volume_number || 1} : ${escapeHtml(album.album_title || 'Sans titre')}</h5>
+                <div style="margin-top: auto;">
+                  ${inCollection 
+                    ? '<span class="badge badge-owned">✔ Dans ma BDthèque</span>' 
+                    : '<span class="badge badge-missing">Non possédé</span>'
+                  }
+                  <span class="badge badge-genre">${escapeHtml(album.series_type || 'Franco-belge')}</span>
+                </div>
+              </div>
+            </div>
+            <div class="album-details">
+              <strong>Auteurs :</strong> ${escapeHtml(album.authors || 'N/C')}<br/>
+              <strong>Éditeur :</strong> ${escapeHtml(album.publisher || 'N/C')} (${album.published_year || 'N/C'})<br/>
+              <strong>ISBN :</strong> ${escapeHtml(album.isbn || 'N/C')}
+            </div>
+            <div class="album-actions">
+              ${inCollection ? `
+                <button class="outline secondary" onclick="handleCardToggle('${encodedAlbum}')">
+                  ✔ Dans ma BDthèque (Retirer)
+                </button>
+              ` : `
+                <button style="background-color: #2e7d32; border-color: #2e7d32; color: #fff;" onclick="handleCardToggle('${encodedAlbum}')">
+                  ➕ Ajouter à ma BDthèque (1 clic)
+                </button>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function handleCardToggle(encoded) {
+      try {
+        const album = JSON.parse(decodeURIComponent(encoded));
+        toggleAlbumInCollection(album);
+      } catch (e) {
+        console.error("Erreur toggle album :", e);
+      }
+    }
+
+    function handleCatalogSearch(e) {
+      e.preventDefault();
+      const q = document.getElementById('catalog-search-input').value.trim();
+      catalogState.query = q;
+      fetchCatalog(1);
+    }
+
+    function resetCatalogSearch() {
+      document.getElementById('catalog-search-input').value = '';
+      catalogState.query = '';
+      fetchCatalog(1);
+    }
+
+    function changeCatalogLimit(limit) {
+      catalogState.limit = parseInt(limit, 10) || 24;
+      fetchCatalog(1);
+    }
+
+    function prevCatalogPage() {
+      if (catalogState.page > 1) {
+        fetchCatalog(catalogState.page - 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    function nextCatalogPage() {
+      if (catalogState.page < catalogState.totalPages) {
+        fetchCatalog(catalogState.page + 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    // Initialisation au chargement de la page
     initSearchEngine();
     renderCollection(myCollection);
   </script>
