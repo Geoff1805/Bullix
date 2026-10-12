@@ -44,7 +44,11 @@ jobs:
           if-no-files-found: ignore
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug
+        run: |
+          VERSION_CODE=$((1000 + ${{ github.run_number }}))
+          VERSION_NAME="1.0.${{ github.run_number }}"
+          echo "Building APK with versionCode=${VERSION_CODE}, versionName=${VERSION_NAME}"
+          ./gradlew assembleDebug -PappVersionCode="${VERSION_CODE}" -PappVersionName="${VERSION_NAME}"
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v7
