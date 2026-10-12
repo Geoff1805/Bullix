@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -28,6 +29,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedFilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -47,6 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import fr.bullix.app.data.dao.CollectionItemDetail
+import fr.bullix.app.domain.CollectionSearchFilter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,13 +64,8 @@ fun CollectionScreen(
     val types = listOf("Tous", "Franco-belge", "Manga", "Comics")
 
     val filteredItems = items.filter { item ->
-        val matchesQuery = searchQuery.isBlank() ||
-                item.seriesTitle.contains(searchQuery, ignoreCase = true) ||
-                (item.albumTitle?.contains(searchQuery, ignoreCase = true) == true) ||
-                (item.isbn?.contains(searchQuery) == true)
-
+        val matchesQuery = CollectionSearchFilter.matches(item, searchQuery)
         val matchesType = selectedType == "Tous" || item.seriesType.equals(selectedType, ignoreCase = true)
-
         matchesQuery && matchesType
     }
 
@@ -76,15 +74,22 @@ fun CollectionScreen(
             .fillMaxSize()
             .padding(horizontal = 16.dp)
     ) {
-        // Barre de recherche
+        // Barre de recherche multi-champs
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
-            placeholder = { Text("Rechercher un album, série ou ISBN...") },
+            placeholder = { Text("Rechercher (titre, série, auteur, éditeur, casier, tome, ISBN...)") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Recherche") },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(Icons.Default.Close, contentDescription = "Effacer")
+                    }
+                }
+            },
             shape = RoundedCornerShape(16.dp),
             singleLine = true
         )
@@ -219,6 +224,25 @@ fun CollectionItemCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+
+                val authorsAndPublisher = listOfNotNull(
+                    item.authors?.takeIf { it.isNotBlank() },
+                    listOfNotNull(
+                        item.publisher?.takeIf { it.isNotBlank() },
+                        item.publishedYear?.toString()
+                    ).joinToString(" ").takeIf { it.isNotBlank() }
+                ).joinToString(" • ")
+
+                if (authorsAndPublisher.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = authorsAndPublisher,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
