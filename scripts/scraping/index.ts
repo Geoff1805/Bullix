@@ -23,6 +23,8 @@ import { scrapeBdovore } from './sources/bdovore.ts';
 import { deduplicateAndMergeSeries } from './utils/normalizer.ts';
 import { generateSqlBatch } from '../seeding/import_seed.ts';
 
+import { ScrapingStateManager } from './utils/state_manager.ts';
+
 // Désactive la vérification TLS stricte pour les environnements avec proxies / CAs personnalisées
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -37,19 +39,40 @@ export async function runScraping(options: ScrapingOptions = {}): Promise<{
   const outputJson = options.outputJson || 'scraped_data.json';
   const outputSql = options.outputSql || 'generated_seed.sql';
 
-  console.log(`\n🚀 [Bullix Scraping Engine] Démarrage de l'extraction`);
+  const stateManager = new ScrapingStateManager();
+  if (options.resetState) {
+    stateManager.reset();
+  }
+
+  const startPages: Record<string, number> = {};
+  for (const cat of categories) {
+    startPages[cat] = stateManager.getStartPage(cat, options.startPage, options.autoAdvance !== false);
+  }
+
+  console.log(`\n🚀 [Bullix Scraping Engine] Démarrage de l'extraction incrémentale`);
   console.log(`   Source : ${source}`);
   console.log(`   Max par catégorie : ${maxPerCategory}`);
-  console.log(`   Catégories : ${categories.join(', ')}`);
+  console.log(`   Catégories & pages de départ : ${categories.map(c => `${c} (p.${startPages[c]})`).join(', ')}`);
+  console.log(`   Séries déjà en historique : ${stateManager.getState().scraped_series_ids.length}`);
 
   const collected: ScrapedSeries[] = [];
+  const knownIds = new Set(stateManager.getState().scraped_series_ids);
 
   // 1. Scraping BDThèque
   if (source === 'all' || source === 'bdtheque') {
     try {
-      const bdtResults = await scrapeBdtheque(maxPerCategory, categories, options.delayMs || 600);
+      const bdtResults = await scrapeBdtheque(
+        maxPerCategory,
+        categories,
+        options.delayMs || 600,
+        startPages,
+        knownIds,
+        (cat, page, newIds) => {
+          stateManager.updateProgress(cat, page, newIds);
+        }
+      );
       collected.push(...bdtResults);
-      console.log(`✅ [BDThèque] ${bdtResults.length} série(s) extraite(s) avec succès.`);
+      console.log(`✅ [BDThèque] ${bdtResults.length} nouvelle(s) série(s) extraite(s) avec succès.`);
     } catch (err: any) {
       console.error(`❌ [BDThèque] Erreur lors de l'extraction: ${err.message}`);
     }
@@ -66,9 +89,21 @@ export async function runScraping(options: ScrapingOptions = {}): Promise<{
     }
   }
 
-  // 3. Normalisation & Dédoublonnage
-  console.log(`\n🔄 [Normalisation] Fusion et dédoublonnage de ${collected.length} série(s) brutes...`);
-  const mergedSeries = deduplicateAndMergeSeries(collected);
+  // 3. Récupération des données existantes pour fusion incrémentale
+  const fullJsonPath = path.resolve(process.cwd(), outputJson);
+  const existingSeries: ScrapedSeries[] = [];
+  if (fs.existsSync(fullJsonPath)) {
+    try {
+      const rawExisting = fs.readFileSync(fullJsonPath, 'utf-8');
+      existingSeries.push(...JSON.parse(rawExisting));
+    } catch {
+      // Ignorer si corrompu
+    }
+  }
+
+  // 4. Normalisation & Fusion (Données existantes + Nouvelles collectées)
+  console.log(`\n🔄 [Normalisation] Fusion incrémentale de ${existingSeries.length} série(s) existante(s) et ${collected.length} nouvelle(s)...`);
+  const mergedSeries = deduplicateAndMergeSeries([...existingSeries, ...collected]);
   console.log(`✨ [Normalisation] Résultat unifié : ${mergedSeries.length} série(s) uniques.`);
 
   // Statistiques
@@ -82,12 +117,14 @@ export async function runScraping(options: ScrapingOptions = {}): Promise<{
   }
   console.log(`📊 Statistiques globales : ${totalAlbums} albums répertoriés (${totalWithIsbn} avec ISBN/EAN valides).`);
 
-  // 4. Écriture du JSON
-  const fullJsonPath = path.resolve(process.cwd(), outputJson);
+  // Sauvegarde de l'état d'avancement
+  stateManager.save();
+
+  // 5. Écriture du JSON
   fs.writeFileSync(fullJsonPath, JSON.stringify(mergedSeries, null, 2), 'utf-8');
   console.log(`💾 Fichier JSON sauvegardé : ${fullJsonPath}`);
 
-  // 5. Génération du batch SQL pour Cloudflare D1
+  // 6. Génération du batch SQL pour Cloudflare D1
   const sqlBatch = generateSqlBatch(mergedSeries);
   const fullSqlPath = path.resolve(process.cwd(), outputSql);
   fs.writeFileSync(fullSqlPath, sqlBatch, 'utf-8');
@@ -118,6 +155,12 @@ if (typeof process !== 'undefined' && process.argv && process.argv[1]?.includes(
       options.outputSql = arg.split('=')[1];
     } else if (arg.startsWith('--bdovore-file=')) {
       options.bdovoreFile = arg.split('=')[1];
+    } else if (arg.startsWith('--page=')) {
+      options.startPage = parseInt(arg.split('=')[1], 10);
+    } else if (arg === '--reset') {
+      options.resetState = true;
+    } else if (arg === '--no-advance') {
+      options.autoAdvance = false;
     }
   }
 

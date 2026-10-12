@@ -31,6 +31,10 @@ export interface ScrapingOptions {
   source?: 'all' | 'bdtheque' | 'bdovore';
   maxPerCategory?: number;
   categories?: Array<'BD' | 'Manga' | 'Comics'>;
+  startPage?: number;
+  autoAdvance?: boolean;
+  resetState?: boolean;
+  letter?: string;
   bdovoreFile?: string;
   outputJson?: string;
   outputSql?: string;
