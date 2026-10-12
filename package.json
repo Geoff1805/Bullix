@@ -4,6 +4,7 @@
   "description": "Bullix - Cloudflare Serverless & BD Collection Offline-First",
   "private": true,
   "scripts": {
+    "build": "echo 'Static web assets ready in web/'",
     "d1:create": "wrangler d1 create bullix-db",
     "d1:apply": "wrangler d1 execute bullix-db --file=./schema.sql",
     "d1:seed": "wrangler d1 execute bullix-db --file=./scripts/seeding/schema_seed.sql",
