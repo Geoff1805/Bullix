@@ -1,0 +1,25 @@
+# Gradle / Kotlin / Android
+.gradle/
+build/
+*/build/
+*.apk
+*.aab
+
+# Local configuration & credentials
+local.properties
+.env
+*.keystore
+*.jks
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Cloudflare / Node
+node_modules/
+.wrangler/
+.wrangler-dist/
+dist/
