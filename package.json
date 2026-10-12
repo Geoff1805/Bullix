@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Bullix - Cloudflare Serverless & BD Collection Offline-First",
   "private": true,
+  "bin": {
+    "web": "./scripts/web.js"
+  },
   "scripts": {
     "build": "echo 'Static web assets ready in web/'",
     "d1:create": "wrangler d1 create bullix-db",
