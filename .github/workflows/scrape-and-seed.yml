@@ -1,0 +1,86 @@
+name: Scraping & Seed Database (BDthèque & BDvore)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Source des données'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - bdtheque
+          - bdovore
+      max_per_category:
+        description: 'Nombre de séries par catégorie (BD, Manga, Comics)'
+        required: true
+        default: '10'
+        type: string
+      categories:
+        description: 'Catégories séparées par des virgules'
+        required: true
+        default: 'BD,Manga,Comics'
+        type: string
+      apply_to_d1:
+        description: 'Injecter le batch SQL dans Cloudflare D1 (bullix-db)'
+        required: true
+        default: true
+        type: boolean
+  schedule:
+    # Exécution automatique mensuelle : le 1er du mois à 03h00 UTC
+    - cron: '0 3 1 * *'
+
+jobs:
+  scrape_and_seed:
+    name: Scrape & Seed Cloudflare D1
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Typecheck Scripts
+        run: npm run typecheck:scripts
+
+      - name: Execute Scraping Engine
+        run: |
+          SOURCE="${{ inputs.source || 'all' }}"
+          MAX="${{ inputs.max_per_category || '10' }}"
+          CATEGORIES="${{ inputs.categories || 'BD,Manga,Comics' }}"
+          
+          echo "Démarrage du scraping Bullix..."
+          echo "Source: $SOURCE | Max: $MAX | Catégories: $CATEGORIES"
+          
+          npx tsx scripts/scraping/index.ts \
+            --source="$SOURCE" \
+            --max="$MAX" \
+            --categories="$CATEGORIES" \
+            --output="scraped_data.json" \
+            --sql="generated_seed.sql"
+
+      - name: Sauvegarder Temporairement les Données (GitHub Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bullix-scraped-database-run-${{ github.run_number }}
+          path: |
+            scraped_data.json
+            generated_seed.sql
+          retention-days: 14
+
+      - name: Injecter dans Cloudflare D1 (bullix-db)
+        if: ${{ inputs.apply_to_d1 != false }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 execute bullix-db --remote --file=generated_seed.sql
+        continue-on-error: true # Tolérance si les secrets Cloudflare ne sont pas encore configurés dans les Secrets GitHub
