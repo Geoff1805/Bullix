@@ -191,4 +191,45 @@ class CollectionRepository(
         locationDao.insertLocation(loc)
         return id
     }
+
+    /**
+     * Recherche textuelle (issue de l'OCR couverture) et vérification de possession.
+     */
+    suspend fun searchAndCheckAlbumPossession(
+        query: String,
+        volumeNumber: Double? = null
+    ): CheckAlbumPossessionResult {
+        val matchedSeries = seriesDao.searchSeriesSync(query).firstOrNull()
+        if (matchedSeries != null) {
+            val seriesAlbums = albumDao.getAlbumsBySeriesSync(matchedSeries.id)
+            val matchedAlbum = if (volumeNumber != null) {
+                seriesAlbums.firstOrNull { it.volumeNumber == volumeNumber }
+            } else {
+                seriesAlbums.firstOrNull()
+            }
+
+            if (matchedAlbum != null) {
+                val cleanIsbn = matchedAlbum.isbn?.replace("-", "")?.trim()
+                if (!cleanIsbn.isNullOrEmpty()) {
+                    return checkAlbumPossessionByIsbn(cleanIsbn)
+                }
+            }
+        }
+
+        return CheckAlbumPossessionResult(
+            isOwned = false,
+            album = null,
+            series = null,
+            locationName = null,
+            condition = null,
+            otherVolumesOwnedCount = 0,
+            totalVolumesInSeries = null
+        )
+    }
+
+    suspend fun addAlbumToUserCollection(
+        albumId: String,
+        condition: String = "Bon",
+        locationId: String? = null
+    ): String = addAlbumToCollection(albumId, locationId, condition)
 }
