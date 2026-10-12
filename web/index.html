@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bullix — Gestionnaire de Collection BD Offline-First</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+  <!-- Bibliothèque standard de recherche plein-texte offline-first : MiniSearch -->
+  <script src="minisearch.min.js"></script>
+  <script>
+    if (typeof MiniSearch === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/minisearch@7.1.1/dist/umd/index.min.js"><\/script>');
+    }
+  </script>
   <style>
     :root {
       --pico-primary: #ffb300;
@@ -26,6 +33,7 @@
     .badge-missing { background-color: #d32f2f; color: #fff; }
     .badge-location { background-color: #0288d1; color: #fff; }
     .badge-genre { background-color: #6a1b9a; color: #fff; }
+    .badge-tech { background-color: #37474f; color: #eceff1; }
     .album-card {
       display: flex;
       gap: 1rem;
@@ -47,6 +55,11 @@
       font-size: 0.85rem;
       color: var(--pico-muted-color);
       margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
   </style>
 </head>
@@ -57,54 +70,60 @@
         <li><strong>📚 Bullix</strong></li>
       </ul>
       <ul>
-        <li><a href="#collection-section">Collection</a></li>
-        <li><a href="#lookup-section">Recherche Catalogue</a></li>
+        <li><a href="#collection-section">Ma Collection</a></li>
+        <li><a href="#lookup-section">Catalogue Global D1</a></li>
       </ul>
     </nav>
   </header>
 
   <main>
-    <section id="lookup-section">
-      <h3>🔍 Recherche Globale d'Album (Tous champs : ISBN, Titre, Série, Auteur)</h3>
-      <form id="lookup-form" onsubmit="handleLookup(event)">
-        <fieldset role="group">
-          <input type="text" id="lookup-input" placeholder="Entrez un titre, série, auteur, éditeur ou ISBN..." required />
-          <input type="submit" value="Rechercher" />
-        </fieldset>
-      </form>
-      <div id="lookup-result"></div>
-    </section>
-
-    <hr />
-
     <section id="collection-section">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
         <h3>📖 Ma Collection</h3>
-        <button class="outline" onclick="loadSampleData()">Réinitialiser Exemple</button>
+        <button class="outline" onclick="loadSampleData()">Réinitialiser Données</button>
       </div>
 
-      <!-- Recherche tous champs sur la collection locale -->
+      <!-- Recherche standard MiniSearch (Instant, Fuzzy, BM25) -->
       <fieldset role="group">
         <input 
           type="search" 
           id="collection-search-input" 
-          placeholder="🔎 Filtrer ma collection sur TOUS les champs (titre, série, auteur, éditeur, casier, tome, ISBN...)" 
+          placeholder="🔎 Recherche instantanée (titre, série, auteur, éditeur, casier, ISBN...)" 
           oninput="filterCollection()" 
         />
         <button type="button" class="secondary" onclick="clearCollectionSearch()">Effacer</button>
       </fieldset>
 
-      <div id="collection-stats" class="search-stats"></div>
+      <div class="search-stats">
+        <span id="collection-stats">Chargement...</span>
+        <span class="badge badge-tech">⚡ Moteur standard : MiniSearch (Index inversé & Fuzzy search)</span>
+      </div>
+
       <div id="collection-list">
         <p><em>Chargement de votre collection...</em></p>
       </div>
     </section>
+
+    <hr style="margin: 2.5rem 0;" />
+
+    <section id="lookup-section">
+      <h3>🌐 Catalogue Distant Cloudflare D1 (Recherche globale / ISBN)</h3>
+      <p><small>Interroge la base centrale D1 et les connecteurs BnF / Open Library lorsque le réseau est disponible.</small></p>
+      <form id="lookup-form" onsubmit="handleLookup(event)">
+        <fieldset role="group">
+          <input type="text" id="lookup-input" placeholder="Entrez un titre, série, auteur ou code-barres ISBN..." required />
+          <input type="submit" value="Interroger D1" />
+        </fieldset>
+      </form>
+      <div id="lookup-result"></div>
+    </section>
   </main>
 
   <script>
-    // Données d'exemple de collection
+    // Données de collection d'exemple avec identifiant unique requis par MiniSearch
     let myCollection = [
       {
+        id: "bd-1",
         seriesTitle: "Astérix",
         albumTitle: "Astérix le Gaulois",
         volumeNumber: 1,
@@ -119,6 +138,7 @@
         coverUrl: "https://covers.openlibrary.org/b/isbn/9782012101333-M.jpg"
       },
       {
+        id: "bd-2",
         seriesTitle: "Blacksad",
         albumTitle: "Quelque part entre les ombres",
         volumeNumber: 1,
@@ -133,6 +153,7 @@
         coverUrl: "https://covers.openlibrary.org/b/isbn/9782205049657-M.jpg"
       },
       {
+        id: "bd-3",
         seriesTitle: "Tintin",
         albumTitle: "Le Lotus bleu",
         volumeNumber: 5,
@@ -147,6 +168,7 @@
         coverUrl: "https://covers.openlibrary.org/b/isbn/9782203001046-M.jpg"
       },
       {
+        id: "bd-4",
         seriesTitle: "One Piece",
         albumTitle: "Romance Dawn",
         volumeNumber: 1,
@@ -162,47 +184,87 @@
       }
     ];
 
-    function normalize(text) {
-      if (!text) return '';
-      return text
-        .toString()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase()
-        .trim();
+    let collectionMap = new Map();
+    let miniSearchInstance = null;
+
+    // Initialisation du moteur de recherche standard MiniSearch
+    function initSearchEngine() {
+      collectionMap.clear();
+      myCollection.forEach(item => collectionMap.set(item.id, item));
+
+      if (typeof MiniSearch !== 'undefined') {
+        miniSearchInstance = new MiniSearch({
+          idField: 'id',
+          fields: ['seriesTitle', 'albumTitle', 'authors', 'publisher', 'isbn', 'locationName', 'seriesType', 'condition', 'editionInfo'],
+          storeFields: ['id', 'seriesTitle', 'albumTitle'],
+          searchOptions: {
+            boost: {
+              seriesTitle: 3,
+              albumTitle: 3,
+              authors: 2,
+              isbn: 2,
+              publisher: 1.5,
+              locationName: 1.2
+            },
+            fuzzy: 0.2, // Tolérance aux fautes de frappe (Levenshtein)
+            prefix: true // Correspondance par préfixe au fur et à mesure de la frappe
+          }
+        });
+        miniSearchInstance.addAll(myCollection);
+      } else {
+        console.warn("MiniSearch non chargé, utilisation du mode de recherche de secours.");
+      }
     }
 
-    function renderCollection(items) {
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function renderCollection(items, query = '') {
       const list = document.getElementById('collection-list');
       const stats = document.getElementById('collection-stats');
       stats.textContent = `${items.length} album(s) affiché(s) sur un total de ${myCollection.length}`;
 
       if (items.length === 0) {
-        list.innerHTML = '<article><em>Aucun album ne correspond à votre recherche multi-champs.</em></article>';
+        list.innerHTML = `
+          <article style="text-align: center; padding: 1.5rem;">
+            <p><em>Aucun album trouvé dans votre collection locale pour "<strong>${escapeHtml(query)}</strong>".</em></p>
+            <button class="outline" onclick="triggerRemoteLookup('${escapeHtml(query)}')">
+              🌐 Rechercher "${escapeHtml(query)}" dans le Catalogue Distant D1
+            </button>
+          </article>
+        `;
         return;
       }
 
       list.innerHTML = items.map(item => `
         <div class="album-card">
-          <img class="album-cover" src="${item.coverUrl}" alt="${item.albumTitle}" onerror="this.style.display='none'" />
+          <img class="album-cover" src="${item.coverUrl}" alt="${escapeHtml(item.albumTitle)}" onerror="this.style.display='none'" />
           <div>
-            <h4>${item.seriesTitle} — Tome ${item.volumeNumber} : ${item.albumTitle}</h4>
+            <h4>${escapeHtml(item.seriesTitle)} — Tome ${item.volumeNumber} : ${escapeHtml(item.albumTitle)}</h4>
             <p style="margin-bottom: 0.3rem;">
               <span class="badge badge-owned">Possédé</span>
-              <span class="badge badge-location">${item.locationName}</span>
-              <span class="badge badge-genre">${item.seriesType}</span>
+              <span class="badge badge-location">${escapeHtml(item.locationName)}</span>
+              <span class="badge badge-genre">${escapeHtml(item.seriesType)}</span>
             </p>
             <small>
-              <strong>Auteurs :</strong> ${item.authors} • 
-              <strong>Éditeur :</strong> ${item.publisher} (${item.publishedYear}) • 
-              <strong>État :</strong> ${item.condition} • 
-              <strong>ISBN :</strong> ${item.isbn}
+              <strong>Auteurs :</strong> ${escapeHtml(item.authors)} • 
+              <strong>Éditeur :</strong> ${escapeHtml(item.publisher)} (${item.publishedYear}) • 
+              <strong>État :</strong> ${escapeHtml(item.condition)} • 
+              <strong>ISBN :</strong> ${escapeHtml(item.isbn)}
             </small>
           </div>
         </div>
       `).join('');
     }
 
+    // Filtrage instantané via MiniSearch
     function filterCollection() {
       const query = document.getElementById('collection-search-input').value.trim();
       if (!query) {
@@ -210,31 +272,30 @@
         return;
       }
 
-      const queryTokens = query.split(/\s+/).map(normalize).filter(Boolean);
-
-      const filtered = myCollection.filter(item => {
-        const fields = [
-          item.seriesTitle,
-          item.albumTitle,
-          item.isbn,
-          item.isbn.replace(/-/g, ''),
-          item.authors,
-          item.publisher,
-          item.publishedYear,
-          item.volumeNumber,
-          `tome ${item.volumeNumber}`,
-          `vol ${item.volumeNumber}`,
-          item.locationName,
-          item.condition,
-          item.editionInfo,
-          item.seriesType
-        ].map(normalize);
-
-        // Tous les mots de recherche doivent matcher au moins un champ
-        return queryTokens.every(token => fields.some(field => field.includes(token)));
-      });
-
-      renderCollection(filtered);
+      if (miniSearchInstance) {
+        // Utilisation du moteur standard MiniSearch
+        const searchResults = miniSearchInstance.search(query, {
+          fuzzy: 0.2,
+          prefix: true,
+          boost: {
+            seriesTitle: 3,
+            albumTitle: 3,
+            authors: 2,
+            isbn: 2,
+            publisher: 1.5,
+            locationName: 1.2
+          }
+        });
+        const matchedItems = searchResults.map(r => collectionMap.get(r.id)).filter(Boolean);
+        renderCollection(matchedItems, query);
+      } else {
+        // Fallback simple
+        const q = query.toLowerCase();
+        const matchedItems = myCollection.filter(item =>
+          Object.values(item).some(val => String(val).toLowerCase().includes(q))
+        );
+        renderCollection(matchedItems, query);
+      }
     }
 
     function clearCollectionSearch() {
@@ -244,13 +305,22 @@
 
     function loadSampleData() {
       clearCollectionSearch();
+      initSearchEngine();
+      renderCollection(myCollection);
+    }
+
+    function triggerRemoteLookup(query) {
+      const input = document.getElementById('lookup-input');
+      input.value = query;
+      document.getElementById('lookup-section').scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('lookup-form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     }
 
     async function handleLookup(e) {
       e.preventDefault();
       const rawInput = document.getElementById('lookup-input').value.trim();
       const container = document.getElementById('lookup-result');
-      container.innerHTML = '<aria-busy="true">Recherche en cours dans Bullix D1...</aria-busy>';
+      container.innerHTML = '<p aria-busy="true">Interrogation du catalogue Cloudflare D1 en cours...</p>';
 
       const isIsbn = /^[0-9xX\- ]{9,17}$/.test(rawInput) && rawInput.replace(/[-\s]/g, '').length >= 10;
 
@@ -259,7 +329,7 @@
           const isbn = rawInput.replace(/[-\s]/g, '');
           const res = await fetch(`/api/lookup/isbn?isbn=${encodeURIComponent(isbn)}`);
           if (!res.ok) {
-            container.innerHTML = `<article style="border-left: 4px solid #d32f2f;"><strong>Non répertorié</strong> : Aucun album trouvé pour l'ISBN ${isbn}.</article>`;
+            container.innerHTML = `<article style="border-left: 4px solid #d32f2f;"><strong>Non répertorié</strong> : Aucun album trouvé dans D1 pour l'ISBN ${escapeHtml(isbn)}.</article>`;
             return;
           }
           const data = await res.json();
@@ -269,43 +339,51 @@
 
           container.innerHTML = `
             <article style="border-left: 4px solid #2e7d32;">
-              <h4>${series ? series.title : 'Album'} — Tome ${album.volume_number || 1} : ${album.title || 'Sans titre'}</h4>
-              <p><strong>Auteurs :</strong> ${album.authors || 'Non renseigné'} | <strong>Éditeur :</strong> ${album.publisher || 'Non renseigné'}</p>
-              <p><span class="badge badge-owned">Source : ${data.source}</span> ${seriesAlbums.length ? `<span class="badge badge-location">${seriesAlbums.length} tomes de la série en cache</span>` : ''}</p>
+              <h4>${series ? escapeHtml(series.title) : 'Album'} — Tome ${album.volume_number || 1} : ${escapeHtml(album.title || 'Sans titre')}</h4>
+              <p><strong>Auteurs :</strong> ${escapeHtml(album.authors || 'Non renseigné')} | <strong>Éditeur :</strong> ${escapeHtml(album.publisher || 'Non renseigné')}</p>
+              <p><span class="badge badge-owned">Source : ${escapeHtml(data.source || 'D1')}</span> ${seriesAlbums.length ? `<span class="badge badge-location">${seriesAlbums.length} tomes de la série en cache</span>` : ''}</p>
             </article>
           `;
         } else {
-          // Recherche multi-champs sur l'API globale
           const res = await fetch(`/api/lookup/search?q=${encodeURIComponent(rawInput)}`);
           if (!res.ok) {
-            container.innerHTML = `<article style="border-left: 4px solid #d32f2f;">Erreur lors de la recherche catalogue.</article>`;
+            container.innerHTML = `<article style="border-left: 4px solid #d32f2f;">Erreur serveur lors de la recherche dans le catalogue.</article>`;
             return;
           }
           const data = await res.json();
           const results = data.results || [];
           if (results.length === 0) {
-            container.innerHTML = `<article style="border-left: 4px solid #d32f2f;">Aucun album trouvé dans le catalogue pour "<strong>${rawInput}</strong>".</article>`;
+            container.innerHTML = `<article style="border-left: 4px solid var(--pico-muted-color);">Aucun album trouvé dans le catalogue distant pour "<strong>${escapeHtml(rawInput)}</strong>".</article>`;
             return;
           }
 
           container.innerHTML = `
             <article style="border-left: 4px solid #2e7d32;">
-              <h5>${results.length} résultat(s) trouvé(s) pour "${rawInput}" :</h5>
-              ${results.slice(0, 5).map(item => `
+              <h5>${results.length} résultat(s) trouvé(s) pour "${escapeHtml(rawInput)}" :</h5>
+              ${results.slice(0, 10).map(item => `
                 <div style="margin-bottom: 0.8rem; border-bottom: 1px solid var(--pico-muted-border-color); padding-bottom: 0.5rem;">
-                  <strong>${item.series_title || 'Série'}</strong> — Tome ${item.volume_number} : <em>${item.album_title || 'Sans titre'}</em><br/>
-                  <small>${item.authors || 'Auteurs non renseignés'} • ${item.publisher || 'Éditeur non renseigné'} (${item.published_year || 'N/C'}) • ISBN : ${item.isbn || 'N/C'}</small>
+                  <strong>${escapeHtml(item.series_title || 'Série')}</strong> — Tome ${item.volume_number} : <em>${escapeHtml(item.album_title || 'Sans titre')}</em><br/>
+                  <small>${escapeHtml(item.authors || 'Auteurs non renseignés')} • ${escapeHtml(item.publisher || 'Éditeur non renseigné')} (${item.published_year || 'N/C'}) • ISBN : ${escapeHtml(item.isbn || 'N/C')}</small>
                 </div>
               `).join('')}
             </article>
           `;
         }
       } catch (err) {
-        container.innerHTML = `<article style="border-left: 4px solid #d32f2f;">Erreur de connexion : ${err.message}</article>`;
+        container.innerHTML = `
+          <article style="border-left: 4px solid #f57c00; background: rgba(245, 124, 0, 0.05);">
+            <strong>Mode Hors-Ligne / Serveur distant non connecté</strong>
+            <p style="margin-bottom: 0; font-size: 0.9rem;">
+              L'API Cloudflare D1 n'est pas joignable (ouverture locale en fichier statique ou absence de réseau).<br/>
+              <em>Votre recherche locale sur la collection avec MiniSearch continue de fonctionner à 100 %.</em>
+            </p>
+          </article>
+        `;
       }
     }
 
-    // Affichage initial de la collection
+    // Démarrage initial
+    initSearchEngine();
     renderCollection(myCollection);
   </script>
 </body>
