@@ -61,8 +61,39 @@ Bullix/
 ├── shared/             # Code partagé KMP (Domaine, Données, Sync, UI Compose)
 ├── androidApp/         # Application Android native (CameraX, ML Kit, WorkManager)
 ├── wasmApp/            # Application Web Wasm (Cloudflare Pages)
-└── functions/          # Cloudflare Pages Functions (API Edge Sync & Lookup)
+├── functions/          # Cloudflare Pages Functions (API Edge Sync & Lookup)
+├── scripts/
+│   ├── scraping/       # Moteur de scraping BDthèque & BDvore (normalisation, CLI)
+│   └── seeding/        # Génération du seed SQL batch D1 et données d'amorçage
+└── .github/workflows/
+    ├── scrape-and-seed.yml # CI/CD : Scraping automatisé, sauvegarde temporaire & injection D1
+    └── deploy-pages.yml    # CI/CD : Déploiement Cloudflare Pages
 ```
+
+---
+
+## 🕷️ Scraping & Amorçage de la Base (BDthèque & BDvore)
+
+Bullix dispose d'un moteur d'extraction et d'ingestion automatisé vers Cloudflare D1 :
+
+### 1. En local (via CLI)
+```bash
+# Scraping rapide d'échantillon (2 séries par catégorie)
+npm run scrape:quick
+
+# Scraping complet (Franco-belge, Manga, Comics)
+npm run scrape:full
+
+# Injection du SQL généré dans Cloudflare D1
+npm run d1:seed
+```
+
+### 2. Déporté sur GitHub Actions (Recommandé)
+Le workflow [`.github/workflows/scrape-and-seed.yml`](.github/workflows/scrape-and-seed.yml) permet de :
+1. Lancer le scraping de manière asynchrone sans surcharger la machine locale.
+2. **Sauvegarder temporairement la base** : Publication automatique des artefacts `scraped_data.json` et `generated_seed.sql` dans GitHub (téléchargeables sur la page de chaque exécution, conservés 14 jours).
+3. **Injecter automatiquement dans Cloudflare D1** : Exécution de `wrangler d1 execute bullix-db --remote` pour alimenter le catalogue en ligne.
+4. Planification mensuelle automatique via cron (`0 3 1 * *`) ou exécution manuelle via `workflow_dispatch`.
 
 ---
 
