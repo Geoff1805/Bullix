@@ -13,6 +13,7 @@ local.properties
 infos manuelles.txt
 scraped_data.json
 generated_seed.sql
+incremental_seed.sql
 .tmp_r2_upload/
 .scraping_state.json
 

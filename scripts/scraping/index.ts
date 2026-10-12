@@ -124,11 +124,16 @@ export async function runScraping(options: ScrapingOptions = {}): Promise<{
   fs.writeFileSync(fullJsonPath, JSON.stringify(mergedSeries, null, 2), 'utf-8');
   console.log(`💾 Fichier JSON sauvegardé : ${fullJsonPath}`);
 
-  // 6. Génération du batch SQL pour Cloudflare D1
+  // 6. Génération du batch SQL pour Cloudflare D1 (Global + Incrémental)
   const sqlBatch = generateSqlBatch(mergedSeries);
   const fullSqlPath = path.resolve(process.cwd(), outputSql);
   fs.writeFileSync(fullSqlPath, sqlBatch, 'utf-8');
-  console.log(`💾 Fichier SQL sauvegardé : ${fullSqlPath} (${(Buffer.byteLength(sqlBatch) / 1024).toFixed(1)} Ko)`);
+  console.log(`💾 Fichier SQL global sauvegardé : ${fullSqlPath} (${(Buffer.byteLength(sqlBatch) / 1024).toFixed(1)} Ko)`);
+
+  const incrementalSql = generateSqlBatch(collected);
+  const incSqlPath = path.resolve(process.cwd(), 'incremental_seed.sql');
+  fs.writeFileSync(incSqlPath, incrementalSql, 'utf-8');
+  console.log(`💾 Fichier SQL incrémental sauvegardé : ${incSqlPath} (${collected.length} nouvelle(s) série(s))`);
 
   return {
     series: mergedSeries,
