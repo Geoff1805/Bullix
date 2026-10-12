@@ -1,16 +1,20 @@
 <#
 .SYNOPSIS
-    Supervise et inspecte les workflows GitHub Actions du dépôt Geoff1805/Bullix.
+    Supervise et inspecte les workflows GitHub Actions du dépôt Geoff1805/Bullix,
+    y compris les sous-erreurs d'étapes (steps) et les annotations d'avertissement.
 
 .DESCRIPTION
-    Interroge l'API GitHub pour récupérer le statut des workflows récents ou associés à un commit précis.
-    Peut surveiller en continu (-Watch) jusqu'à terminaison de tous les runs et afficher les logs d'erreurs en cas d'échec.
+    Interroge l'API GitHub pour récupérer le statut détaillé des workflows et sous-étapes.
+    Peut surveiller en continu (-Watch) jusqu'à terminaison de tous les runs et inspecter les logs.
 
 .PARAMETER CommitSha
     SHA spécifique du commit à inspecter. Si non spécifié, prend le dernier commit de main.
 
 .PARAMETER Watch
     Attend et interroge régulièrement jusqu'à ce que tous les workflows en cours soient terminés.
+
+.PARAMETER ShowSubErrors
+    Affiche le détail des sous-étapes ayant rencontré des erreurs ou des avertissements.
 
 .PARAMETER TimeoutSeconds
     Délai maximal en secondes pour le mode Watch (défaut: 300s).
@@ -23,6 +27,7 @@
 param(
     [string]$CommitSha,
     [switch]$Watch,
+    [switch]$ShowSubErrors = $true,
     [int]$TimeoutSeconds = 300,
     [int]$IntervalSeconds = 15
 )
@@ -97,17 +102,31 @@ function Show-RunDetails {
     Write-Host "  -> [$($conclusionText.ToUpper())] $($run.name) (Run ID: $($run.id))" -ForegroundColor $statusColor
     Write-Host "     URL: $($run.html_url)" -ForegroundColor DarkGray
 
-    if ($run.conclusion -eq "failure") {
+    # Inspection détaillée des sous-étapes et annotations
+    if ($run.status -eq "completed" -or $run.conclusion -eq "failure") {
         try {
             $jobsResponse = Invoke-RestMethod -Uri "https://api.github.com/repos/$repoOwner/$repoName/actions/runs/$($run.id)/jobs" -Headers $headers
             foreach ($job in $jobsResponse.jobs) {
-                if ($job.conclusion -eq "failure") {
-                    Write-Host "     Échec Job: $($job.name)" -ForegroundColor Red
-                    $failedSteps = $job.steps | Where-Object { $_.conclusion -eq "failure" }
+                # Étapes en échec (y compris avec continue-on-error)
+                $failedSteps = $job.steps | Where-Object { $_.conclusion -eq "failure" }
+                if ($failedSteps) {
+                    Write-Host "     [Sous-erreur Job: $($job.name)]" -ForegroundColor Red
                     foreach ($step in $failedSteps) {
-                        Write-Host "       Étape échouée: $($step.name)" -ForegroundColor DarkRed
+                        Write-Host "       x Étape en échec : $($step.name)" -ForegroundColor Red
                     }
                 }
+
+                # Annotations GitHub (avertissements et erreurs de tooling)
+                try {
+                    $annotations = Invoke-RestMethod -Uri "https://api.github.com/repos/$repoOwner/$repoName/check-runs/$($job.id)/annotations" -Headers $headers
+                    $warningsOrErrors = $annotations | Where-Object { $_.annotation_level -in @("warning", "failure") }
+                    if ($warningsOrErrors) {
+                        foreach ($ann in $warningsOrErrors) {
+                            $levelColor = if ($ann.annotation_level -eq "failure") { "Red" } else { "DarkYellow" }
+                            Write-Host "       ! [$($ann.annotation_level)] $($ann.message)" -ForegroundColor $levelColor
+                        }
+                    }
+                } catch {}
             }
         } catch {
             Write-Warning "     Impossible de charger les jobs pour le run $($run.id) : $_"
@@ -124,7 +143,6 @@ do {
     } else {
         $inProgress = $runs | Where-Object { $_.status -in @("in_progress", "queued", "waiting", "requested") }
         $failed = $runs | Where-Object { $_.conclusion -eq "failure" }
-        $completed = $runs | Where-Object { $_.status -eq "completed" }
 
         Write-Host "`n--- Statut GitHub Actions ($(Get-Date -Format 'HH:mm:ss')) ---" -ForegroundColor White
         foreach ($r in $runs) {
