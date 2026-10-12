@@ -1,0 +1,19 @@
+name = "bullix"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "web"
+
+# Cloudflare D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "bullix-db"
+database_id = "bullix-d1-placeholder"
+
+# Cloudflare KV for external API caching (BnF, Open Library, Comic Vine)
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "bullix-kv-cache-placeholder"
+
+# Cloudflare R2 Bucket for cover art & locker photos
+[[r2_buckets]]
+binding = "IMAGES_BUCKET"
+bucket_name = "bullix-images"
