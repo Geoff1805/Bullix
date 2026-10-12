@@ -42,7 +42,15 @@ export async function uploadCoversToR2(
   let totalUploaded = 0;
   let totalSkipped = 0;
 
-  console.log(`\n🚀 [Cloudflare R2 Direct Upload] Transfert des jaquettes vers le bucket "${BUCKET_NAME}" (Jurisdiction: ${JURISDICTION})`);
+  console.log(`\n🚀 [Cloudflare R2 Direct Upload] Transfert des jaquettes vers le bucket "${BUCKET_NAME}"`);
+
+  // Assurer l'existence du bucket sur Cloudflare R2
+  try {
+    execSync(`npx wrangler r2 bucket create ${BUCKET_NAME}`, { stdio: 'pipe' });
+    console.log(`  📦 Bucket R2 "${BUCKET_NAME}" vérifié/créé.`);
+  } catch {
+    // Si le bucket existe déjà, wrangler renvoie une erreur ignorée
+  }
 
   for (const s of seriesList) {
     for (const alb of s.albums) {
@@ -66,21 +74,33 @@ export async function uploadCoversToR2(
         const arrayBuffer = await res.arrayBuffer();
         fs.writeFileSync(localTmpFile, Buffer.from(arrayBuffer));
 
-        // Upload direct vers Cloudflare R2
+        // Upload direct vers Cloudflare R2 (essai standard puis fallback juridiction EU)
         console.log(`     ☁️ Envoi direct vers Cloudflare R2: ${r2Key}...`);
+        let uploadOk = false;
         try {
+          // 1. Tentative sur bucket standard (espace global)
           execSync(
-            `npx wrangler r2 object put ${BUCKET_NAME}/${r2Key} --file="${localTmpFile}" --content-type=image/jpeg --jurisdiction=${JURISDICTION} --remote`,
+            `npx wrangler r2 object put ${BUCKET_NAME}/${r2Key} --file="${localTmpFile}" --content-type=image/jpeg --remote`,
             { stdio: 'pipe' }
           );
-          // Remplacement immédiat par l'URL Cloudflare Edge
-          alb.cover_image_url = `/api/images/${r2Key}`;
+          uploadOk = true;
+        } catch {
+          try {
+            // 2. Tentative avec restriction juridictionnelle UE
+            execSync(
+              `npx wrangler r2 object put ${BUCKET_NAME}/${r2Key} --file="${localTmpFile}" --content-type=image/jpeg --jurisdiction=eu --remote`,
+              { stdio: 'pipe' }
+            );
+            uploadOk = true;
+          } catch (wranglerErr: any) {
+            console.warn(`     ⚠️ Échec commande wrangler (Tokens non configurés ou bucket inexistant): ${wranglerErr.message}`);
+          }
+        }
+
+        alb.cover_image_url = `/api/images/${r2Key}`;
+        if (uploadOk) {
           totalUploaded++;
           console.log(`     ✅ Transféré sur R2 -> /api/images/${r2Key}`);
-        } catch (wranglerErr: any) {
-          console.warn(`     ⚠️ Échec commande wrangler (Tokens non configurés ou hors-ligne): ${wranglerErr.message}`);
-          // On associe tout de même la clé R2 cible pour la base de données
-          alb.cover_image_url = `/api/images/${r2Key}`;
         }
       } catch (err: any) {
         console.warn(`     ⚠️ Erreur traitement jaquette ${alb.id}: ${err.message}`);
