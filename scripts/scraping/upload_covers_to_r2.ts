@@ -51,6 +51,41 @@ function loadEnvIfPresent(): { apiToken?: string; accountId?: string } {
   };
 }
 
+async function fetchExistingR2Keys(accountId?: string, apiToken?: string): Promise<Set<string>> {
+  const keys = new Set<string>();
+  if (!accountId || !apiToken) return keys;
+
+  try {
+    let cursor: string | undefined = undefined;
+    let pageCount = 0;
+    do {
+      const url = new URL(`https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${BUCKET_NAME}/objects`);
+      url.searchParams.set('per_page', '1000');
+      if (cursor) url.searchParams.set('cursor', cursor);
+
+      const res = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${apiToken}` }
+      });
+      if (!res.ok) break;
+
+      const data: any = await res.json();
+      const objects = data.result || [];
+      if (Array.isArray(objects)) {
+        for (const obj of objects) {
+          if (obj.key) keys.add(obj.key);
+        }
+      }
+      cursor = data.result_info?.cursor;
+      pageCount++;
+    } while (cursor && pageCount < 20);
+  } catch (err: any) {
+    console.warn(`  ⚠️ Impossible de lister les objets R2 existants: ${err.message}`);
+  }
+
+  return keys;
+}
+
 export async function uploadCoversToR2(
   jsonInputPath = 'scraped_data.json',
   sqlOutputPath = 'generated_seed.sql'
@@ -107,15 +142,29 @@ export async function uploadCoversToR2(
     }
   }
 
+  // Récupérer l'inventaire des jaquettes déjà présentes sur Cloudflare R2
+  const existingR2Keys = await fetchExistingR2Keys(accountId, apiToken);
+  if (existingR2Keys.size > 0) {
+    console.log(`  🔍 ${existingR2Keys.size} jaquette(s) déjà recensée(s) dans le bucket R2 (évite tout re-téléchargement).`);
+  }
+
   for (const s of seriesList) {
     for (const alb of s.albums) {
-      if (!alb.cover_image_url || alb.cover_image_url.startsWith('/api/images/')) {
+      const r2Key = `covers/${alb.id}.jpg`;
+
+      // Déjà uploadé ou déjà référencé vers l'Edge
+      if (existingR2Keys.has(r2Key) || (alb.cover_image_url && alb.cover_image_url.startsWith('/api/images/'))) {
+        alb.cover_image_url = `/api/images/${r2Key}`;
+        totalSkipped++;
+        continue;
+      }
+
+      if (!alb.cover_image_url) {
         totalSkipped++;
         continue;
       }
 
       const remoteUrl = alb.cover_image_url;
-      const r2Key = `covers/${alb.id}.jpg`;
       const localTmpFile = path.resolve(tmpDir, `${alb.id}.jpg`);
 
       try {

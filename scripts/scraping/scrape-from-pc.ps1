@@ -161,9 +161,19 @@ if (-not $SkipUploadR2 -and $env:CLOUDFLARE_API_TOKEN -and $env:CLOUDFLARE_ACCOU
 
     if (-not $SkipD1) {
         Write-Host ""
-        Write-Host "Application du schema et injection dans Cloudflare D1 (bullix-db)..." -ForegroundColor Yellow
-        npx wrangler d1 execute bullix-db --remote --file=schema.sql
-        npx wrangler d1 execute bullix-db --remote --file=generated_seed.sql
+        $incSql = Join-Path $projectRoot "incremental_seed.sql"
+        if (Test-Path $incSql) {
+            $content = Get-Content $incSql -Raw
+            if ($content -match "INSERT OR IGNORE") {
+                Write-Host "Injection des nouveaux albums dans Cloudflare D1 (bullix-db)..." -ForegroundColor Yellow
+                npx wrangler d1 execute bullix-db --remote --file=incremental_seed.sql
+            } else {
+                Write-Host "Base Cloudflare D1 deja a jour (aucun nouvel album a inserer lors de ce passage)." -ForegroundColor Green
+            }
+        } else {
+            Write-Host "Injection dans Cloudflare D1 (bullix-db)..." -ForegroundColor Yellow
+            npx wrangler d1 execute bullix-db --remote --file=generated_seed.sql
+        }
     }
 } else {
     Write-Host ""
