@@ -43,6 +43,7 @@ jobs:
 
       - name: Audit NPM Dependencies
         run: |
+          if [ ! -f package-lock.json ]; then npm i --package-lock-only --no-fund --no-audit || true; fi
           npm audit --audit-level=high || true
 
       - name: Set up JDK 17
