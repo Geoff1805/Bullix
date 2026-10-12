@@ -674,17 +674,63 @@
           catalogState.total = data.total || data.albums.length;
           catalogState.totalPages = data.totalPages || Math.ceil(catalogState.total / catalogState.limit) || 1;
           catalogState.error = null;
+        } else if (data.total === 0 && catalogState.query) {
+          // Rien dans D1 : recherche automatique dans les APIs externes (BnF, Google Books, Open Library)
+          await tryExternalLookup(catalogState.query);
         } else if (data.notice || data.total === 0) {
-          // Si D1 est vide ou notice, utiliser le fallback de démo
           applyFallbackCatalog();
         }
       } catch (err) {
         console.warn("API D1 inaccessible, bascule sur les données locales du catalogue :", err.message);
-        applyFallbackCatalog();
+        if (catalogState.query) {
+          await tryExternalLookup(catalogState.query);
+        } else {
+          applyFallbackCatalog();
+        }
       } finally {
         catalogState.loading = false;
         renderCatalog();
       }
+    }
+
+    async function tryExternalLookup(query) {
+      try {
+        const isIsbn = /^[0-9Xx-]{9,17}$/.test(query.trim());
+        const endpoint = isIsbn 
+          ? `/api/lookup/isbn?isbn=${encodeURIComponent(query.trim())}` 
+          : `/api/lookup/search?q=${encodeURIComponent(query.trim())}`;
+        
+        const res = await fetch(endpoint);
+        if (res.ok) {
+          const data = await res.json();
+          const items = data.results || (data.album ? [data.album] : []);
+          if (items.length > 0) {
+            catalogState.albums = items.map(a => ({
+              album_id: a.id || a.album_id,
+              series_id: a.series_id || (data.series ? data.series.id : 's_ext'),
+              series_title: a.series_title || (data.series ? data.series.title : a.title),
+              volume_number: a.volume_number || 1,
+              album_title: a.title || a.album_title,
+              isbn: a.isbn || '',
+              authors: a.authors || '',
+              publisher: a.publisher || '',
+              published_year: a.published_year || null,
+              cover_image_url: a.cover_image_url || '',
+              series_type: (data.series ? data.series.type : a.series_type) || 'Franco-belge',
+              external_source: data.source || 'API Externe'
+            }));
+            catalogState.total = catalogState.albums.length;
+            catalogState.totalPages = 1;
+            const srcName = (data.source || 'EXT').toUpperCase();
+            catalogState.error = `Trouvé via ${srcName} (Dépôt légal / API)`;
+            showToast(`Album trouvé via ${srcName} !`, 'success');
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Échec recherche externe :", e);
+      }
+      applyFallbackCatalog();
     }
 
     function applyFallbackCatalog() {
@@ -763,6 +809,7 @@
                     : '<span class="badge badge-missing">Non possédé</span>'
                   }
                   <span class="badge badge-genre">${escapeHtml(album.series_type || 'Franco-belge')}</span>
+                  ${album.external_source ? `<span class="badge" style="background:#0288d1; color:#fff;">Source : ${escapeHtml(album.external_source.toUpperCase())}</span>` : ''}
                 </div>
               </div>
             </div>
