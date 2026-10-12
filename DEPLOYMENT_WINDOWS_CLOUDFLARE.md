@@ -24,17 +24,20 @@ Vous avez le choix entre **deux approches** : l'interface web Cloudflare (100 % 
 
 ### Méthode A — 100 % Interface Web Cloudflare (Recommandée sous Windows)
 
-#### Étape 1 : Créer la base de données D1
+#### Étape 1 : Créer la base de données D1 (Juridiction EU)
 1. Rendez-vous sur le [Tableau de bord Cloudflare](https://dash.cloudflare.com/).
 2. Dans le menu de gauche, allez dans **Stockage et bases de données** > **D1 SQL Database**.
-3. Cliquez sur **Créer une base de données**, nommez-la `bullix-db` et validez.
+3. Cliquez sur **Créer une base de données**, nommez-la `bullix-db` :
+   - **Emplacement géographique (Location hint)** : Choisissez **Europe de l'Ouest (Western Europe — `weur`)** pour garantir la souveraineté des données et la conformité RGPD.
+   - Validez la création.
 4. Notez l'**ID de la base de données** généré (ex: `xxxx-xxxx-xxxx`).
 5. Cliquez sur l'onglet **Console** de votre base `bullix-db`, collez le contenu du fichier [`schema.sql`](file:///g:/Mon%20Drive/05_Dev/Bullix/schema.sql) et cliquez sur **Exécuter** pour initialiser les tables (`series`, `albums`, `user_collections`, `locations`, `sync_records`).
 
-#### Étape 2 : Créer le KV (Cache) et le bucket R2 (Images)
+#### Étape 2 : Créer le KV (Cache) et le bucket R2 (Images) en Juridiction EU
 1. Dans le menu **Stockage et bases de données** :
    - Allez dans **KV** > **Créer un espace de noms** > Nom : `CACHE_KV`.
-   - Allez dans **R2** > **Créer un bucket** > Nom : `bullix-images`.
+   - Allez dans **R2** > **Créer un bucket** > Nom : `bullix-images` :
+     - **Juridiction (Jurisdiction)** : Sélectionnez **Union européenne (EU)**. Cloudflare garantit alors le stockage et le traitement physique de tous les scans et visuels sur le sol de l'UE.
 
 #### Étape 3 : Créer et lier le projet Cloudflare Pages
 1. Allez dans **Workers et Pages** > **Créer une application** > onglet **Pages** > **Se connecter à Git**.
@@ -84,11 +87,18 @@ Si vous souhaitez exécuter les déploiements et commandes en terminal depuis Po
    npx wrangler login
    ```
 
-3. **Créer la base D1 et appliquer le schéma** :
+3. **Créer la base D1 et le stockage R2 en Juridiction EU** :
    ```powershell
-   npx wrangler d1 create bullix-db
-   # Copiez l'identifiant 'database_id' obtenu dans wrangler.toml
+   # Base D1 hébergée en Europe de l'Ouest
+   npx wrangler d1 create bullix-db --location=weur
+   # Appliquer le schéma de données
    npx wrangler d1 execute bullix-db --file=./schema.sql
+
+   # Namespace KV pour le cache
+   npx wrangler kv:namespace create CACHE_KV
+
+   # Bucket R2 restreint à la juridiction Union Européenne
+   npx wrangler r2 bucket create bullix-images --jurisdiction eu
    ```
 
 4. **Déployer le site et les fonctions** :

@@ -23,3 +23,4 @@ pages_build_output_dir = "web"
 # [[r2_buckets]]
 # binding = "IMAGES_BUCKET"
 # bucket_name = "bullix-images"
+# jurisdiction = "eu"
