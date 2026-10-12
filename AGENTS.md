@@ -19,3 +19,4 @@
 - **Langue** : Toujours répondre en français de manière concise avec des liens cliquables `file:///` vers les fichiers et symboles modifiés.
 - **Architecture** : Offline-First stricte, Optimistic UI, Kotlin Multiplatform (KMP), Cloudflare Serverless (D1, KV, R2).
 - **Souveraineté & Green IT** : Maintenir l'architecture 100 % locale sans dépendance cloud propriétaire obligatoire ; fonctionnement autonome en l'absence de réseau.
+- **Réutilisation de l'existant (Ne pas réinventer la roue)** : Systématiquement privilégier les bibliothèques éprouvées, composants standards et fonctionnalités natives de l'écosystème (ex: SQLite FTS5, MiniSearch/Fuse.js, standards de validation/formatage) plutôt que de réécrire des solutions maison ad-hoc ou fragiles dès lors qu'un outil standard adapté existe.
