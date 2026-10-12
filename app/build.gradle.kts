@@ -63,7 +63,7 @@ dependencies {
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
   implementation(libs.androidx.lifecycle.runtime.compose)
-  implementation(libs.activity.compose)
+  implementation(libs.androidx.activity.compose)
 
   // Compose
   implementation(platform(libs.androidx.compose.bom))
