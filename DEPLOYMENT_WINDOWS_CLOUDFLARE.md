@@ -50,6 +50,10 @@ Vous avez le choix entre **deux approches** : l'interface web Cloudflare (100 % 
 > Si vous avez saisi `web` dans le champ **Commande de génération (Build command)**, Cloudflare tente d'exécuter `web` comme une commande Linux.
 > **Correction** : Allez dans le projet Pages > **Paramètres** > **Générations et déploiements** > **Modifier la configuration** > vider le champ **Commande de génération** (le laisser complètement vide) > **Enregistrer** > relancer le déploiement.
 
+> ⚠️ **Erreur `8000022: Invalid KV namespace ID` ou `Invalid D1 database ID`** :
+> Si `wrangler.toml` contient des identifiants temporaires non renseignés (*placeholders*), Cloudflare Pages bloque la publication des Functions.
+> Les liaisons D1, KV et R2 doivent être configurées via l'interface web (Étape 4 ci-dessous) ou avec de véritables identifiants dans `wrangler.toml`.
+
 #### Étape 4 : Lier les ressources (Bindings D1, KV, R2)
 1. Dans votre projet Pages, allez dans l'onglet **Paramètres** > **Fonctions**.
 2. Descendez jusqu'à **Liaisons de base de données D1** (D1 database bindings) :
