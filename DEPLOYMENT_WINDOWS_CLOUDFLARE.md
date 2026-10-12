@@ -29,7 +29,7 @@ Vous avez le choix entre **deux approches** : l'interface web Cloudflare (100 % 
 2. Dans le menu de gauche, allez dans **Stockage et bases de données** > **D1 SQL Database**.
 3. Cliquez sur **Créer une base de données**, nommez-la `bullix-db` et validez.
 4. Notez l'**ID de la base de données** généré (ex: `xxxx-xxxx-xxxx`).
-5. Cliquez sur l'onglet **Console** de votre base `bullix-db`, collez le contenu du fichier [`schema.sql`](schema.sql) et cliquez sur **Exécuter** pour initialiser les tables (`series`, `albums`, `user_collections`, `locations`, `sync_records`).
+5. Cliquez sur l'onglet **Console** de votre base `bullix-db`, collez le contenu du fichier [`schema.sql`](file:///g:/Mon%20Drive/05_Dev/Bullix/schema.sql) et cliquez sur **Exécuter** pour initialiser les tables (`series`, `albums`, `user_collections`, `locations`, `sync_records`).
 
 #### Étape 2 : Créer le KV (Cache) et le bucket R2 (Images)
 1. Dans le menu **Stockage et bases de données** :
@@ -41,9 +41,14 @@ Vous avez le choix entre **deux approches** : l'interface web Cloudflare (100 % 
 2. Sélectionnez votre dépôt GitHub `Geoff1805/Bullix` et la branche `main`.
 3. Paramètres de configuration du build :
    - **Préréglage de configuration (Build preset)** : `None`
+   - **Commande de génération (Build command)** : **LAISSER VIDE** (ne rien écrire, ou `npm run build` ; **attention : ne pas écrire `web` ici !**)
    - **Répertoire de sortie de génération (Build output directory)** : `web`
    - **Répertoire racine (Root directory)** : `/`
 4. Cliquez sur **Enregistrer et déployer**. Cloudflare Pages déploie immédiatement le site statique et connecte automatiquement le dossier `functions/` comme API Edge.
+
+> ⚠️ **Erreur fréquente `/bin/sh: 1: web: not found` (Code 127)** :
+> Si vous avez saisi `web` dans le champ **Commande de génération (Build command)**, Cloudflare tente d'exécuter `web` comme une commande Linux.
+> **Correction** : Allez dans le projet Pages > **Paramètres** > **Générations et déploiements** > **Modifier la configuration** > vider le champ **Commande de génération** (le laisser complètement vide) > **Enregistrer** > relancer le déploiement.
 
 #### Étape 4 : Lier les ressources (Bindings D1, KV, R2)
 1. Dans votre projet Pages, allez dans l'onglet **Paramètres** > **Fonctions**.
@@ -91,10 +96,10 @@ Si vous souhaitez exécuter les déploiements et commandes en terminal depuis Po
 
 ## 📦 3. Import des Données de Scraping (BDthèque & BDvore)
 
-Le script [`scripts/seeding/import_seed.ts`](scripts/seeding/import_seed.ts) convertit automatiquement les catalogues de BD au format JSON en requêtes SQL compatibles Cloudflare D1.
+Le script [`scripts/seeding/import_seed.ts`](file:///g:/Mon%20Drive/05_Dev/Bullix/scripts/seeding/import_seed.ts) convertit automatiquement les catalogues de BD au format JSON en requêtes SQL compatibles Cloudflare D1.
 
 ### Format JSON attendu pour le scraping
-Un exemple type est disponible dans [`scripts/seeding/sample_scraped_data.json`](scripts/seeding/sample_scraped_data.json) :
+Un exemple type est disponible dans [`scripts/seeding/sample_scraped_data.json`](file:///g:/Mon%20Drive/05_Dev/Bullix/scripts/seeding/sample_scraped_data.json) :
 ```json
 [
   {
@@ -144,5 +149,5 @@ Un exemple type est disponible dans [`scripts/seeding/sample_scraped_data.json`]
 3. Dans la section **Artifacts** en bas de page, cliquez sur **`bullix-debug-apk`** pour télécharger votre application Android prête à installer.
 
 ### Dependabot & Dependency Scanning
-- **Dependabot** : Configuré dans [`.github/dependabot.yml`](.github/dependabot.yml), il surveille chaque semaine les mises à jour des dépendances Android/Gradle (`gradle/libs.versions.toml`), des paquets npm (`package.json`) et des actions GitHub.
-- **Dependency Review** : Le workflow [`.github/workflows/dependency-scanning.yml`](.github/workflows/dependency-scanning.yml) analyse automatiquement toute Pull Request et bloque les dépendances vulnérables ou de sévérité élevée.
+- **Dependabot** : Configuré dans [`.github/dependabot.yml`](file:///g:/Mon%20Drive/05_Dev/Bullix/.github/dependabot.yml), il surveille chaque semaine les mises à jour des dépendances Android/Gradle (`gradle/libs.versions.toml`), des paquets npm (`package.json`) et des actions GitHub.
+- **Dependency Review** : Le workflow [`.github/workflows/dependency-scanning.yml`](file:///g:/Mon%20Drive/05_Dev/Bullix/.github/workflows/dependency-scanning.yml) analyse automatiquement toute Pull Request et bloque les dépendances vulnérables ou de sévérité élevée.
