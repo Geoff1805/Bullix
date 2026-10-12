@@ -42,10 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js LTS
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -78,7 +78,7 @@ jobs:
         run: |
           if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] || [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
             echo "has_token=false" >> $GITHUB_OUTPUT
-            echo "::warning title=Secrets Cloudflare Manquants::CLOUDFLARE_API_TOKEN ou CLOUDFLARE_ACCOUNT_ID n'est pas configuré dans GitHub Secrets. Le transfert R2 et l'injection D1 sont ignorés. Les fichiers JSON et SQL sont disponibles dans les artefacts."
+            echo "::warning title=Secrets Cloudflare Manquants::CLOUDFLARE_API_TOKEN ou CLOUDFLARE_ACCOUNT_ID n'est pas configuré dans GitHub Secrets."
           else
             echo "has_token=true" >> $GITHUB_OUTPUT
             echo "Secrets Cloudflare détectés. Transfert Cloudflare activé."
@@ -97,7 +97,7 @@ jobs:
 
       # Sauvegarde temporaire exclusive des métadonnées texte (SQL & JSON), aucune image
       - name: Sauvegarder Temporairement les Métadonnées DB (GitHub Artifacts - 14j)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bullix-scraped-database-run-${{ github.run_number }}
           path: |
@@ -105,9 +105,18 @@ jobs:
             generated_seed.sql
           retention-days: 14
 
+      # Application du schéma global Cloudflare D1 si la base est vierge
+      - name: Initialiser le Schéma D1 (schema.sql)
+        if: ${{ steps.check_credentials.outputs.has_token == 'true' && (inputs.apply_to_d1 != false) }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 execute bullix-db --remote --file=schema.sql
+
       # Injection du batch SQL dans Cloudflare D1
-      - name: Injecter dans Cloudflare D1 (bullix-db)
-        if: ${{ inputs.apply_to_d1 != false && steps.check_credentials.outputs.has_token == 'true' }}
+      - name: Injecter le Seed de Données dans Cloudflare D1 (bullix-db)
+        if: ${{ steps.check_credentials.outputs.has_token == 'true' && (inputs.apply_to_d1 != false) }}
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
