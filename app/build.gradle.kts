@@ -15,8 +15,10 @@ android {
   if (versionPropsFile.exists()) {
     versionProps.load(versionPropsFile.inputStream())
   }
-  val appVersionCode = versionProps.getProperty("versionCode", "1").toIntOrNull() ?: 1
-  val appVersionName = versionProps.getProperty("versionName", "1.0.0")
+  val appVersionCode = (project.findProperty("appVersionCode") as? String)?.toIntOrNull()
+    ?: (versionProps.getProperty("versionCode", "1").toIntOrNull() ?: 1)
+  val appVersionName = (project.findProperty("appVersionName") as? String)
+    ?: versionProps.getProperty("versionName", "1.0.0")
 
   val envProps = Properties()
   val envExampleFile = file("${rootDir}/.env.example")
@@ -40,7 +42,26 @@ android {
     buildConfigField("String", "BULLIX_API_URL", "\"$apiUrl\"")
   }
 
+  val keystoreFile = file("${rootDir}/app/debug.keystore")
+  val keystoreBase64File = file("${rootDir}/app/debug.keystore.base64")
+  if (!keystoreFile.exists() && keystoreBase64File.exists()) {
+    val decoded = java.util.Base64.getDecoder().decode(keystoreBase64File.readText().trim())
+    keystoreFile.writeBytes(decoded)
+  }
+
+  signingConfigs {
+    getByName("debug") {
+      storeFile = keystoreFile
+      storePassword = "android"
+      keyAlias = "androiddebugkey"
+      keyPassword = "android"
+    }
+  }
+
   buildTypes {
+    debug {
+      signingConfig = signingConfigs.getByName("debug")
+    }
     release {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
