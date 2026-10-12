@@ -42,16 +42,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup Node.js LTS
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Install Dependencies
         run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          if [ -f package-lock.json ]; then npm ci --legacy-peer-deps; else npm install --legacy-peer-deps; fi
 
       - name: Typecheck Scripts
         run: npm run typecheck:scripts
@@ -72,16 +72,21 @@ jobs:
             --output="scraped_data.json" \
             --sql="generated_seed.sql"
 
-      - name: Notice Cloudflare Secrets
-        if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      # Vérification de la présence des Secrets Cloudflare
+      - name: Vérifier la Présence des Identifiants Cloudflare
+        id: check_credentials
         run: |
-          echo "::notice ::Secret CLOUDFLARE_API_TOKEN absent. Synchronisation Cloudflare D1/R2 ignorée."
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] || [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "has_token=false" >> $GITHUB_OUTPUT
+            echo "::warning title=Secrets Cloudflare Manquants::CLOUDFLARE_API_TOKEN ou CLOUDFLARE_ACCOUNT_ID n'est pas configuré dans GitHub Secrets. Le transfert R2 et l'injection D1 sont ignorés. Les fichiers JSON et SQL sont disponibles dans les artefacts."
+          else
+            echo "has_token=true" >> $GITHUB_OUTPUT
+            echo "Secrets Cloudflare détectés. Transfert Cloudflare activé."
+          fi
 
       # Transfert DIRECT des jaquettes vers Cloudflare R2 (Aucune sauvegarde image dans GitHub)
       - name: Uploader Directement les Jaquettes vers Cloudflare R2 (Zero Image dans GitHub)
-        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && (inputs.upload_to_r2 != false) }}
+        if: ${{ inputs.upload_to_r2 != false && steps.check_credentials.outputs.has_token == 'true' }}
         run: |
           echo "Transfert direct des jaquettes vers Cloudflare R2 (bullix-images, juridiction UE)..."
           echo "Aucune image n'est persistée sur GitHub."
@@ -89,11 +94,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        continue-on-error: true
 
       # Sauvegarde temporaire exclusive des métadonnées texte (SQL & JSON), aucune image
       - name: Sauvegarder Temporairement les Métadonnées DB (GitHub Artifacts - 14j)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: bullix-scraped-database-run-${{ github.run_number }}
           path: |
@@ -103,13 +107,9 @@ jobs:
 
       # Injection du batch SQL dans Cloudflare D1
       - name: Injecter dans Cloudflare D1 (bullix-db)
-        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && (inputs.apply_to_d1 != false) }}
+        if: ${{ inputs.apply_to_d1 != false && steps.check_credentials.outputs.has_token == 'true' }}
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: d1 execute bullix-db --remote --file=generated_seed.sql
-          wranglerVersion: "latest"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        continue-on-error: true
