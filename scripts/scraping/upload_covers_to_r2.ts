@@ -4,7 +4,7 @@
  * Règle stricte:
  * - Aucune image n'est persistée sur GitHub (ni repo, ni artefacts de build).
  * - Les images sont téléchargées en mémoire / tampon éphémère et envoyées DIRECTEMENT
- *   dans le bucket R2 de Cloudflare via l'outil Wrangler CLI.
+ *   dans le bucket R2 de Cloudflare via l'API REST Cloudflare ou l'outil Wrangler CLI.
  * - Le champ cover_image_url des albums est réécrit vers la route Cloudflare Edge :
  *   /api/images/covers/${album.id}.jpg
  * - Le fichier SQL (generated_seed.sql) est régénéré pour pointer vers les images R2.
@@ -19,7 +19,37 @@ import { generateSqlBatch } from '../seeding/import_seed.ts';
 import { fetchWithRetry, sleep } from './utils/rate_limiter.ts';
 
 const BUCKET_NAME = 'bullix-images';
-const JURISDICTION = 'eu';
+
+function loadEnvIfPresent(): { apiToken?: string; accountId?: string } {
+  const envPath = path.resolve(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
+    for (const line of lines) {
+      const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.*)\s*$/);
+      if (m) {
+        const key = m[1];
+        const val = m[2].trim().replace(/^["']|["']$/g, '');
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+
+  const manualInfoPath = path.resolve(process.cwd(), 'infos manuelles.txt');
+  if (fs.existsSync(manualInfoPath) && !process.env.CLOUDFLARE_ACCOUNT_ID) {
+    const content = fs.readFileSync(manualInfoPath, 'utf-8');
+    const m = content.match(/Account ID\s*:\s*([a-f0-9]+)/i);
+    if (m) {
+      process.env.CLOUDFLARE_ACCOUNT_ID = m[1];
+    }
+  }
+
+  return {
+    apiToken: process.env.CLOUDFLARE_API_TOKEN,
+    accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+  };
+}
 
 export async function uploadCoversToR2(
   jsonInputPath = 'scraped_data.json',
@@ -30,6 +60,8 @@ export async function uploadCoversToR2(
     console.error(`❌ Fichier introuvable : ${fullJsonPath}`);
     return;
   }
+
+  const { apiToken, accountId } = loadEnvIfPresent();
 
   const raw = fs.readFileSync(fullJsonPath, 'utf-8');
   const seriesList: ScrapedSeries[] = JSON.parse(raw);
@@ -45,11 +77,34 @@ export async function uploadCoversToR2(
   console.log(`\n🚀 [Cloudflare R2 Direct Upload] Transfert des jaquettes vers le bucket "${BUCKET_NAME}"`);
 
   // Assurer l'existence du bucket sur Cloudflare R2
-  try {
-    execSync(`npx wrangler r2 bucket create ${BUCKET_NAME}`, { stdio: 'pipe' });
-    console.log(`  📦 Bucket R2 "${BUCKET_NAME}" vérifié/créé.`);
-  } catch {
-    // Si le bucket existe déjà, wrangler renvoie une erreur ignorée
+  if (apiToken && accountId) {
+    try {
+      const res = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${BUCKET_NAME}`,
+        {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${apiToken}` },
+        }
+      );
+      if (res.ok) {
+        console.log(`  📦 Bucket R2 "${BUCKET_NAME}" vérifié et actif sur votre compte.`);
+      } else {
+        await fetch(
+          `https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${apiToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: BUCKET_NAME }),
+          }
+        );
+        console.log(`  📦 Bucket R2 "${BUCKET_NAME}" créé.`);
+      }
+    } catch {
+      // Ignoré, continuation
+    }
   }
 
   for (const s of seriesList) {
@@ -72,28 +127,53 @@ export async function uploadCoversToR2(
         }
 
         const arrayBuffer = await res.arrayBuffer();
-        fs.writeFileSync(localTmpFile, Buffer.from(arrayBuffer));
-
-        // Upload direct vers Cloudflare R2 (essai standard puis fallback juridiction EU)
-        console.log(`     ☁️ Envoi direct vers Cloudflare R2: ${r2Key}...`);
+        const buffer = Buffer.from(arrayBuffer);
         let uploadOk = false;
-        try {
-          // 1. Tentative sur bucket standard (espace global)
-          execSync(
-            `npx wrangler r2 object put ${BUCKET_NAME}/${r2Key} --file="${localTmpFile}" --content-type=image/jpeg --remote`,
-            { stdio: 'pipe' }
-          );
-          uploadOk = true;
-        } catch {
+
+        // 1. Upload direct ultra-rapide via API REST Cloudflare R2 (streaming sans sous-processus)
+        if (apiToken && accountId) {
           try {
-            // 2. Tentative avec restriction juridictionnelle UE
+            const putRes = await fetch(
+              `https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${BUCKET_NAME}/objects/${r2Key}`,
+              {
+                method: 'PUT',
+                headers: {
+                  Authorization: `Bearer ${apiToken}`,
+                  'Content-Type': 'image/jpeg',
+                },
+                body: buffer,
+              }
+            );
+            if (putRes.ok) {
+              uploadOk = true;
+            } else {
+              const errJson: any = await putRes.json().catch(() => null);
+              console.warn(`     ⚠️ Échec API R2 HTTP ${putRes.status}: ${JSON.stringify(errJson?.errors || errJson)}`);
+            }
+          } catch (apiErr: any) {
+            console.warn(`     ⚠️ Erreur réseau API R2: ${apiErr.message}`);
+          }
+        }
+
+        // 2. Repli secondaire via Wrangler CLI si l'appel direct n'a pas réussi
+        if (!uploadOk) {
+          fs.writeFileSync(localTmpFile, buffer);
+          try {
             execSync(
-              `npx wrangler r2 object put ${BUCKET_NAME}/${r2Key} --file="${localTmpFile}" --content-type=image/jpeg --jurisdiction=eu --remote`,
+              `npx wrangler r2 object put ${BUCKET_NAME}/${r2Key} --file="${localTmpFile}" --content-type=image/jpeg --remote`,
               { stdio: 'pipe' }
             );
             uploadOk = true;
-          } catch (wranglerErr: any) {
-            console.warn(`     ⚠️ Échec commande wrangler (Tokens non configurés ou bucket inexistant): ${wranglerErr.message}`);
+          } catch {
+            try {
+              execSync(
+                `npx wrangler r2 object put ${BUCKET_NAME}/${r2Key} --file="${localTmpFile}" --content-type=image/jpeg --jurisdiction=eu --remote`,
+                { stdio: 'pipe' }
+              );
+              uploadOk = true;
+            } catch (wranglerErr: any) {
+              console.warn(`     ⚠️ Échec commande wrangler: ${wranglerErr.message}`);
+            }
           }
         }
 
@@ -105,13 +185,13 @@ export async function uploadCoversToR2(
       } catch (err: any) {
         console.warn(`     ⚠️ Erreur traitement jaquette ${alb.id}: ${err.message}`);
       } finally {
-        // Suppression immédiate du fichier éphémère : AUCUNE image ne subsiste localement
+        // Suppression immédiate du fichier éphémère si créé localement
         if (fs.existsSync(localTmpFile)) {
           fs.unlinkSync(localTmpFile);
         }
       }
 
-      await sleep(200);
+      await sleep(150);
     }
   }
 
