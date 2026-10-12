@@ -166,14 +166,14 @@ if (-not $SkipUploadR2 -and $env:CLOUDFLARE_API_TOKEN -and $env:CLOUDFLARE_ACCOU
             $content = Get-Content $incSql -Raw
             if ($content -match "INSERT OR IGNORE") {
                 Write-Host "Injection des nouveaux albums dans Cloudflare D1 (bullix-db)..." -ForegroundColor Yellow
-                npx wrangler d1 execute bullix-db --remote --file=incremental_seed.sql
+                npx wrangler d1 execute bullix-db --remote --file=incremental_seed.sql -y
             } else {
                 Write-Host "Base Cloudflare D1 deja a jour (aucun nouvel album a inserer lors de ce passage)." -ForegroundColor Green
             }
             Remove-Item -Path $incSql -Force -ErrorAction SilentlyContinue
         } else {
             Write-Host "Injection dans Cloudflare D1 (bullix-db)..." -ForegroundColor Yellow
-            npx wrangler d1 execute bullix-db --remote --file=generated_seed.sql
+            npx wrangler d1 execute bullix-db --remote --file=generated_seed.sql -y
         }
     }
 
