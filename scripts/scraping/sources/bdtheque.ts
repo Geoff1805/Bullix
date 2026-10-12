@@ -15,17 +15,18 @@ interface SeriesListingItem {
 }
 
 /**
- * Récupère la liste des séries d'une catégorie (BD, Manga, Comics)
+ * Récupère la liste des séries d'une catégorie (BD, Manga, Comics) sur une page donnée
  */
 export async function fetchSeriesList(
   category: 'BD' | 'Manga' | 'Comics',
-  limit = 10
+  limit = 10,
+  page = 1
 ): Promise<SeriesListingItem[]> {
-  const url = `${BASE_URL}/recherche/series/type=${category}`;
+  const url = `${BASE_URL}/recherche/series/type=${category}/${page}`;
   try {
     const res = await fetchWithRetry(url);
     if (!res.ok) {
-      console.warn(`[BDThèque] Impossible de récupérer la liste pour ${category} (HTTP ${res.status})`);
+      console.warn(`[BDThèque] Impossible de récupérer la liste pour ${category} page ${page} (HTTP ${res.status})`);
       return [];
     }
     const html = await res.text();
@@ -44,7 +45,7 @@ export async function fetchSeriesList(
 
     return Array.from(uniqueMap.values());
   } catch (err: any) {
-    console.error(`[BDThèque] Erreur lors de la récupération de la liste ${category}:`, err.message);
+    console.error(`[BDThèque] Erreur lors de la récupération de la liste ${category} (page ${page}):`, err.message);
     return [];
   }
 }
@@ -173,28 +174,65 @@ export async function fetchSeriesDetails(
 }
 
 /**
- * Scraping complet BDThèque sur les catégories spécifiées
+ * Scraping complet BDThèque sur les catégories spécifiées avec pagination automatique et saut des séries connues
  */
 export async function scrapeBdtheque(
   limitPerCategory = 5,
   categories: Array<'BD' | 'Manga' | 'Comics'> = ['BD', 'Manga', 'Comics'],
-  delayMs = 800
+  delayMs = 800,
+  startPages: Record<string, number> = {},
+  ignoredSeriesIds: Set<string> = new Set(),
+  onProgress?: (category: string, page: number, newSeriesIds: string[]) => void
 ): Promise<ScrapedSeries[]> {
   const allSeries: ScrapedSeries[] = [];
 
   for (const cat of categories) {
-    console.log(`\n📚 [BDThèque] Exploration de la catégorie : ${cat} (max ${limitPerCategory})...`);
-    const list = await fetchSeriesList(cat, limitPerCategory);
-    console.log(`🔍 [BDThèque] ${list.length} série(s) trouvée(s) pour ${cat}. Extraction des albums...`);
+    let currentPage = startPages[cat] || 1;
+    let foundInCat = 0;
+    const catSeriesIds: string[] = [];
 
-    for (const item of list) {
-      console.log(`  -> Extraction : #${item.id} (${item.slug})`);
-      const details = await fetchSeriesDetails(item.id, item.slug);
-      if (details) {
-        allSeries.push(details);
-        console.log(`     ✅ ${details.title} (${details.albums.length} tomes répertoriés)`);
+    console.log(`\n📚 [BDThèque] Exploration : ${cat} (objectif ${limitPerCategory} nouvelle(s) série(s), départ page ${currentPage})...`);
+
+    while (foundInCat < limitPerCategory) {
+      console.log(`  📄 Chargement de la page ${currentPage} (${cat})...`);
+      const list = await fetchSeriesList(cat, 20, currentPage);
+
+      if (list.length === 0) {
+        console.log(`  ⏹️ Fin des résultats atteinte à la page ${currentPage} pour ${cat}.`);
+        break;
       }
-      await sleep(delayMs);
+
+      let evaluatedOnPage = 0;
+      for (const item of list) {
+        if (foundInCat >= limitPerCategory) break;
+
+        const seriesKey = `series_bdt_${item.id}`;
+        if (ignoredSeriesIds.has(seriesKey)) {
+          console.log(`  ⏩ Série déjà répertoriée sautée : #${item.id} (${item.slug})`);
+          continue;
+        }
+
+        console.log(`  -> Extraction de la nouveauté : #${item.id} (${item.slug})`);
+        const details = await fetchSeriesDetails(item.id, item.slug);
+        if (details) {
+          allSeries.push(details);
+          catSeriesIds.push(details.id);
+          ignoredSeriesIds.add(details.id);
+          foundInCat++;
+          console.log(`     ✅ ${details.title} (${details.albums.length} tomes)`);
+        }
+        evaluatedOnPage++;
+        await sleep(delayMs);
+      }
+
+      if (onProgress) {
+        onProgress(cat, currentPage, catSeriesIds);
+      }
+
+      // Si on n'a pas encore atteint le quota de nouvelles séries, on avance à la page suivante
+      if (foundInCat < limitPerCategory) {
+        currentPage++;
+      }
     }
   }
 

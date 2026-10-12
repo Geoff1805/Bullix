@@ -20,6 +20,12 @@ param(
 
     [string]$Categories = "BD,Manga,Comics",
 
+    [int]$Page = 0,
+
+    [switch]$Reset,
+
+    [switch]$NoAdvance,
+
     [switch]$SkipUploadR2,
 
     [switch]$SkipD1
@@ -129,6 +135,16 @@ $scrapeArgs = @(
     "--output=scraped_data.json",
     "--sql=generated_seed.sql"
 )
+
+if ($Page -gt 0) {
+    $scrapeArgs += "--page=$Page"
+}
+if ($Reset) {
+    $scrapeArgs += "--reset"
+}
+if ($NoAdvance) {
+    $scrapeArgs += "--no-advance"
+}
 
 npx @scrapeArgs
 
