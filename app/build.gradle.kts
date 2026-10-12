@@ -1,3 +1,4 @@
+import java.util.Base64
 import java.util.Properties
 
 plugins {
@@ -45,7 +46,7 @@ android {
   val keystoreFile = file("${rootDir}/app/debug.keystore")
   val keystoreBase64File = file("${rootDir}/app/debug.keystore.base64")
   if (!keystoreFile.exists() && keystoreBase64File.exists()) {
-    val decoded = java.util.Base64.getDecoder().decode(keystoreBase64File.readText().trim())
+    val decoded = Base64.getDecoder().decode(keystoreBase64File.readText().trim())
     keystoreFile.writeBytes(decoded)
   }
 
