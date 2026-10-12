@@ -25,17 +25,15 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Gradle 9.3.1
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: '9.3.1'
 
       - name: Make gradlew executable
         run: |
           if [ -f gradlew ]; then chmod +x gradlew; fi
 
       - name: Run Automated Unit Tests
-        run: gradle test --continue
+        run: ./gradlew test --continue
 
       - name: Upload Test Results
         if: always()
@@ -46,7 +44,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Build Debug APK
-        run: gradle assembleDebug
+        run: ./gradlew assembleDebug
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v7

@@ -1,0 +1,41 @@
+name: Update Gradle Wrapper (Stable)
+
+on:
+  schedule:
+    # Vérification hebdomadaire chaque lundi à 05:00 UTC
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-gradle-wrapper:
+    name: Check & Update Gradle Wrapper (Stable)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Update Gradle Wrapper to latest stable release
+        uses: gradle-update/update-gradle-wrapper-action@v2
+        with:
+          release-channel: 'stable'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore(deps): update Gradle Wrapper to latest stable GA release'
+          pr-title: 'chore(deps): bump Gradle Wrapper to latest stable release'
+          pr-body: |
+            Mise à jour automatique du Gradle Wrapper vers la dernière version stable (GA).
+            - Canal : `stable` (filtre strictement les Nightly builds et Release Candidates)
+            - Respecte la politique de cycle de vie Gradle et le standard CI/CD First de Bullix.
+          labels: |
+            dependencies
+            gradle
