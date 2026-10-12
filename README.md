@@ -91,9 +91,10 @@ npm run d1:seed
 ### 2. Déporté sur GitHub Actions (Recommandé)
 Le workflow [`.github/workflows/scrape-and-seed.yml`](.github/workflows/scrape-and-seed.yml) permet de :
 1. Lancer le scraping de manière asynchrone sans surcharger la machine locale.
-2. **Sauvegarder temporairement la base** : Publication automatique des artefacts `scraped_data.json` et `generated_seed.sql` dans GitHub (téléchargeables sur la page de chaque exécution, conservés 14 jours).
-3. **Injecter automatiquement dans Cloudflare D1** : Exécution de `wrangler d1 execute bullix-db --remote` pour alimenter le catalogue en ligne.
-4. Planification mensuelle automatique via cron (`0 3 1 * *`) ou exécution manuelle via `workflow_dispatch`.
+2. **Transfert direct des jaquettes vers Cloudflare R2** : Les jaquettes d'albums sont streamées directement vers le bucket Cloudflare R2 (`bullix-images`, juridiction UE). **Aucune image n'est stockée sur GitHub** (zéro image dans le repo ou les artefacts).
+3. **Sauvegarder temporairement la base (texte uniquement)** : Publication des artefacts `scraped_data.json` et `generated_seed.sql` dans GitHub Actions (conservés 14 jours).
+4. **Injecter automatiquement dans Cloudflare D1** : Exécution de `wrangler d1 execute bullix-db --remote` pour alimenter le catalogue avec les URLs d'images R2 (`/api/images/covers/:id.jpg`).
+5. Planification mensuelle automatique via cron (`0 3 1 * *`) ou exécution manuelle via `workflow_dispatch`.
 
 ---
 
