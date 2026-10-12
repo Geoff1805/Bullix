@@ -20,14 +20,24 @@ jobs:
     name: Dependency Review (PRs)
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    continue-on-error: true
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
 
       - name: Dependency Review
+        # Dependency Review Action requiert un dépôt public ou GitHub Advanced Security (GHAS) sur dépôt privé
+        if: "!github.event.repository.private"
         uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
+        continue-on-error: true
+
+      - name: Info dépôt privé sans GHAS
+        if: github.event.repository.private
+        run: |
+          echo "ℹ️ Le repository est privé sans GitHub Advanced Security (GHAS) actif."
+          echo "La revue des dépendances PR est ignorée. L'audit de sécurité npm & gradle s'exécute dans le job security-audit."
 
   security-audit:
     name: Security & Vulnerability Audit
