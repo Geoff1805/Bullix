@@ -45,8 +45,16 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         if: steps.check_credentials.outputs.has_token == 'true'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy web --project-name=bullix
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # 1. Tentative d'auto-création du bucket R2 si le token dispose des droits
+          npx wrangler r2 bucket create bullix-images || true
+
+          # 2. Déploiement sur Cloudflare Pages
+          if ! npx wrangler pages deploy web --project-name=bullix; then
+            echo "::warning title=R2 Bucket Missing::Le bucket R2 'bullix-images' n'est pas encore créé dans votre compte Cloudflare. Déploiement sans binding R2..."
+            grep -v -E "r2_buckets|IMAGES_BUCKET|bullix-images" wrangler.toml > wrangler.tmp && mv wrangler.tmp wrangler.toml
+            npx wrangler pages deploy web --project-name=bullix
+          fi
