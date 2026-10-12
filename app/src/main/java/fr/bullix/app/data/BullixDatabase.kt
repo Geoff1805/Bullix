@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
     exportSchema = false
 )
 abstract class BullixDatabase : RoomDatabase() {
+
     abstract fun seriesDao(): SeriesDao
     abstract fun albumDao(): AlbumDao
     abstract fun locationDao(): LocationDao
@@ -46,10 +47,10 @@ abstract class BullixDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     BullixDatabase::class.java,
-                    "bullix_local.db"
+                    "bullix_database.db"
                 )
-                    .addCallback(DatabaseCallback())
                     .fallbackToDestructiveMigration()
+                    .addCallback(DatabaseCallback())
                     .build()
                 INSTANCE = instance
                 instance
@@ -67,7 +68,7 @@ abstract class BullixDatabase : RoomDatabase() {
                         LocationEntity(
                             id = "loc_salon_b1_c01",
                             name = "Salon › Bibliothèque › Casier n°1",
-                            qr_code_ref = "QR-SALON-B1-C01",
+                            qrCodeRef = "QR-SALON-B1-C01",
                             colorTag = "#4CAF50"
                         )
                     )
@@ -75,7 +76,7 @@ abstract class BullixDatabase : RoomDatabase() {
                         LocationEntity(
                             id = "loc_salon_b1_c02",
                             name = "Salon › Bibliothèque › Casier n°2",
-                            qr_code_ref = "QR-SALON-B1-C02",
+                            qrCodeRef = "QR-SALON-B1-C02",
                             colorTag = "#2196F3"
                         )
                     )
@@ -83,7 +84,7 @@ abstract class BullixDatabase : RoomDatabase() {
                         LocationEntity(
                             id = "loc_bureau_pile_a_ranger",
                             name = "Bureau › Pile à ranger (En attente)",
-                            qr_code_ref = "QR-BUREAU-ATTENTE",
+                            qrCodeRef = "QR-BUREAU-ATTENTE",
                             colorTag = "#FF9800"
                         )
                     )

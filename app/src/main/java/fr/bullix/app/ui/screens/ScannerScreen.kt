@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
@@ -51,55 +52,115 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import coil.compose.AsyncImage
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import fr.bullix.app.data.repository.CollectionRepository
 import fr.bullix.app.domain.model.CheckAlbumPossessionResult
 import fr.bullix.app.scan.BarcodeAnalyzer
 import fr.bullix.app.scan.CoverOcrAnalyzer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.util.concurrent.Executors
+import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun ScannerScreen(
     repository: CollectionRepository,
-    onAlbumAdded: () -> Unit
+    onNavigateToAlbumDetail: (String) -> Unit
 ) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val coroutineScope = rememberCoroutineScope()
+    val cameraPermissionState = rememberPermissionState(permission = android.Manifest.permission.CAMERA)
 
-    var scanMode by remember { mutableIntStateOf(0) } // 0: Code-barres, 1: OCR Couverture
-    var isChecking by remember { mutableStateOf(false) }
-    var scanResult by remember { mutableStateOf<CheckAlbumPossessionResult?>(null) }
-    var lastScannedCode by remember { mutableStateOf<String?>(null) }
-
-    val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
-
-    val barcodeAnalyzer = remember {
-        BarcodeAnalyzer { barcode ->
-            if (!isChecking && barcode != lastScannedCode) {
-                lastScannedCode = barcode
-                isChecking = true
-                coroutineScope.launch {
-                    val result = repository.checkAlbumPossessionByIsbn(barcode)
-                    scanResult = result
-                    isChecking = false
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (cameraPermissionState.status.isGranted) {
+            CameraPreviewAndAnalyzer(
+                repository = repository,
+                onNavigateToAlbumDetail = onNavigateToAlbumDetail
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CropFree,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Permission Caméra Requise",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Bullix utilise la caméra pour scanner les codes-barres en brocante et reconnaître les couvertures de BD anciennes.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(onClick = { cameraPermissionState.launchPermissionRequest() }) {
+                    Text("Autoriser l'appareil photo")
                 }
             }
         }
     }
+}
 
-    val ocrAnalyzer = remember {
+@Composable
+fun CameraPreviewAndAnalyzer(
+    repository: CollectionRepository,
+    onNavigateToAlbumDetail: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+
+    var scanMode by remember { mutableIntStateOf(0) } // 0 = Barcode, 1 = OCR Couverture
+    var scanResult by remember { mutableStateOf<CheckAlbumPossessionResult?>(null) }
+    var isChecking by remember { mutableStateOf(false) }
+    var detectedTextDisplay by remember { mutableStateOf<String?>(null) }
+
+    val barcodeAnalyzer = remember {
+        BarcodeAnalyzer { rawBarcode ->
+            scope.launch {
+                isChecking = true
+                val result = withContext(Dispatchers.IO) {
+                    repository.checkAlbumPossessionByIsbn(rawBarcode)
+                }
+                scanResult = result
+                isChecking = false
+            }
+        }
+    }
+
+    val coverOcrAnalyzer = remember {
         CoverOcrAnalyzer { candidate ->
-            if (!isChecking) {
-                // Traitement de l'OCR
+            scope.launch {
+                detectedTextDisplay = candidate.detectedTitle ?: "Tome ${candidate.detectedVolumeNumber}"
+                isChecking = true
+                candidate.detectedTitle?.let { title ->
+                    val result = withContext(Dispatchers.IO) {
+                        repository.searchAndCheckAlbumPossession(
+                            query = title,
+                            volumeNumber = candidate.detectedVolumeNumber
+                        )
+                    }
+                    scanResult = result
+                }
+                isChecking = false
             }
         }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Prévisualisation CameraX
         AndroidView(
             factory = { ctx ->
                 val previewView = PreviewView(ctx).apply {
@@ -120,21 +181,19 @@ fun ScannerScreen(
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
 
-                    val currentAnalyzer = if (scanMode == 0) barcodeAnalyzer else ocrAnalyzer
-                    imageAnalysis.setAnalyzer(cameraExecutor, currentAnalyzer)
-
-                    val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                    val analyzerToUse = if (scanMode == 0) barcodeAnalyzer else coverOcrAnalyzer
+                    imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(ctx), analyzerToUse)
 
                     try {
                         cameraProvider.unbindAll()
                         cameraProvider.bindToLifecycle(
                             lifecycleOwner,
-                            cameraSelector,
+                            CameraSelector.DEFAULT_BACK_CAMERA,
                             preview,
                             imageAnalysis
                         )
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+                    } catch (exc: Exception) {
+                        exc.printStackTrace()
                     }
                 }, ContextCompat.getMainExecutor(ctx))
 
@@ -142,22 +201,6 @@ fun ScannerScreen(
             },
             modifier = Modifier.fillMaxSize()
         )
-
-        // Viseur central
-        Box(
-            modifier = Modifier
-                .size(280.dp, if (scanMode == 0) 160.dp else 260.dp)
-                .align(Alignment.Center)
-                .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.CropFree,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-            )
-        }
 
         // Sélecteur de mode en haut (Code-barres vs OCR)
         Column(
@@ -185,7 +228,7 @@ fun ScannerScreen(
                     selected = scanMode == 1,
                     onClick = {
                         scanMode = 1
-                        ocrAnalyzer.resume()
+                        coverOcrAnalyzer.resume()
                         scanResult = null
                     },
                     text = { Text("OCR Couverture") }
@@ -193,121 +236,148 @@ fun ScannerScreen(
             }
         }
 
-        // Bandeau de résultat anti-doublon en bas
+        // Overlay central de cadrage
+        Box(
+            modifier = Modifier
+                .size(280.dp, if (scanMode == 0) 160.dp else 280.dp)
+                .align(Alignment.Center)
+                .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+        )
+
+        // Indicateur d'analyse en cours
         if (isChecking) {
-            Card(
+            CircularProgressIndicator(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .size(48.dp)
+                    .align(Alignment.Center),
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        // Fiche de résultat Anti-Doublon instantanée (Overlay Bas)
+        scanResult?.let { result ->
+            AntiDoublonResultCard(
+                result = result,
+                onDismiss = {
+                    scanResult = null
+                    barcodeAnalyzer.resume()
+                    coverOcrAnalyzer.resume()
+                },
+                onAddToCollection = {
+                    scope.launch(Dispatchers.IO) {
+                        result.album?.let { album ->
+                            repository.addAlbumToUserCollection(
+                                albumId = album.id,
+                                condition = "Très bon"
+                            )
+                        }
+                    }
+                    scanResult = null
+                    barcodeAnalyzer.resume()
+                    coverOcrAnalyzer.resume()
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
                     .padding(16.dp)
-                    .align(Alignment.BottomCenter),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.85f))
+            )
+        }
+    }
+}
+
+@Composable
+fun AntiDoublonResultCard(
+    result: CheckAlbumPossessionResult,
+    onDismiss: () -> Unit,
+    onAddToCollection: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (result.isOwned) Color(0xFF2E7D32) else Color(0xFFE65100)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.width(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (result.isOwned) Icons.Default.CheckCircle else Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Vérification anti-doublon en cours...",
-                        color = Color.White
+                        text = if (result.isOwned) "DÉJÀ DANS LA COLLECTION" else "ALBUM MANQUANT",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
                     )
                 }
+                IconButton(onClick = onDismiss) {
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Fermer", tint = Color.White)
+                }
             }
-        } else if (scanResult != null) {
-            val res = scanResult!!
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .align(Alignment.BottomCenter),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (res.isOwned) Color(0xFFD32F2F) else Color(0xFF2E7D32)
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (res.isOwned) Icons.Default.Warning else Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (res.isOwned) "DÉJÀ POSSÉDÉ !" else "NON POSSÉDÉ (MANQUANT)",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
 
-                        IconButton(onClick = {
-                            scanResult = null
-                            barcodeAnalyzer.resume()
-                            ocrAnalyzer.resume()
-                        }) {
-                            Icon(Icons.Default.Close, contentDescription = "Fermer", tint = Color.White)
-                        }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+                result.album?.coverImageUrl?.let { coverUrl ->
+                    AsyncImage(
+                        model = coverUrl,
+                        contentDescription = "Couverture",
+                        modifier = Modifier
+                            .size(60.dp, 80.dp)
+                            .background(Color.DarkGray, RoundedCornerShape(4.dp))
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "${result.series?.title ?: "Série inconnue"} — T.${result.album?.volumeNumber ?: "?"}",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                    result.album?.title?.let {
+                        Text(text = it, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (res.album != null) {
+                    if (result.isOwned) {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "${res.series?.title ?: "Série"} — Tome ${res.album.volumeNumber.toInt()} : ${res.album.title ?: ""}",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
-                        )
-                    }
-
-                    if (res.isOwned) {
-                        Text(
-                            text = "Emplacement actuel : ${res.locationName ?: "Non rangé"}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.9f)
-                        )
-                        Text(
-                            text = "État possédé : ${res.condition ?: "Bon"}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.8f)
+                            text = "Rangement : ${result.locationName ?: "Non classé"}",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 12.sp
                         )
                     } else {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Vous possédez déjà ${res.otherVolumesOwnedCount} tome(s) de cette série.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.9f)
+                            text = "Vous possédez ${result.otherVolumesOwnedCount}/${result.totalVolumesInSeries ?: "?"} tomes de cette série",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 12.sp
                         )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    res.album?.let { album ->
-                                        repository.addAlbumToCollection(album.id)
-                                        scanResult = null
-                                        barcodeAnalyzer.resume()
-                                        onAlbumAdded()
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Ajouter à ma collection", color = Color.Black, fontWeight = FontWeight.Bold)
-                        }
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (!result.isOwned) {
+                Button(
+                    onClick = onAddToCollection,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFFE65100))
+                ) {
+                    Icon(imageVector = Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Ajouter à ma collection", fontWeight = FontWeight.Bold)
                 }
             }
         }
