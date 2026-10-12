@@ -35,6 +35,11 @@ Write-Host ""
 
 # 1. Verification de Node.js
 Write-Host "[1/5] Verification de l'environnement local..." -ForegroundColor Yellow
+
+if (Test-Path "C:\Program Files\nodejs\node.exe") {
+    $env:PATH = "C:\Program Files\nodejs;$env:PATH"
+}
+
 $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
 
 if (-not $nodeCmd) {
@@ -71,6 +76,17 @@ if (-not (Test-Path "node_modules")) {
 # 3. Recuperation des Identifiants Cloudflare
 Write-Host ""
 Write-Host "[3/5] Detection des identifiants Cloudflare..." -ForegroundColor Yellow
+$envFile = Join-Path $projectRoot ".env"
+if (Test-Path $envFile) {
+    Get-Content $envFile | ForEach-Object {
+        if ($_ -match "^\s*([A-Za-z0-9_]+)\s*=\s*(.*)\s*$") {
+            $k = $matches[1]
+            $v = $matches[2].Trim('"' , "'")
+            [System.Environment]::SetEnvironmentVariable($k, $v, "Process")
+        }
+    }
+}
+
 $apiToken = $env:CLOUDFLARE_API_TOKEN
 $accountId = $env:CLOUDFLARE_ACCOUNT_ID
 
