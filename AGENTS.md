@@ -13,6 +13,7 @@
   2. **Génération d'APK** : Workflow automatique (`assembleDebug` / `assembleRelease`) avec publication d'artefacts téléchargeables.
   3. **Déploiement Site Web** : Workflow automatique de build et déploiement du frontend (ex: Cloudflare Pages).
   4. **Sécurité & Dépendances** : Toujours maintenir la configuration Dependabot (`.github/dependabot.yml`) et les actions de Dependency Scanning / Review pour bloquer les vulnérabilités.
+  5. **Mise à jour automatique Gradle (GA stable)** : Toujours intégrer le workflow de mise à jour automatique du Gradle Wrapper (`.github/workflows/update-gradle-wrapper.yml`) ciblant strictement le canal `stable` (GA uniquement, exclusion des Nightly builds et Release Candidates), avec validation d'intégrité SHA-256 et alignement dynamique de la CI (`./gradlew` sans version Gradle codée en dur).
 
 ## Conventions du Projet
 - **Langue** : Toujours répondre en français de manière concise avec des liens cliquables `file:///` vers les fichiers et symboles modifiés.
