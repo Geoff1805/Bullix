@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bullix — Gestionnaire de Collection BD Offline-First</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="apple-touch-icon" href="icon.png" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
   <!-- Bibliothèque standard de recherche plein-texte offline-first : MiniSearch -->
   <script src="minisearch.min.js"></script>
@@ -182,7 +184,10 @@
   <header>
     <nav>
       <ul>
-        <li><strong>📚 Bullix</strong></li>
+        <li style="display: flex; align-items: center; gap: 0.6rem;">
+          <img src="favicon.png" alt="Bullix Logo" style="width: 38px; height: 38px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2);" />
+          <strong style="font-size: 1.25rem;">Bullix</strong>
+        </li>
       </ul>
       <ul>
         <li><span class="badge badge-tech">Cloudflare D1 + MiniSearch</span></li>
