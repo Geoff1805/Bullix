@@ -3,17 +3,29 @@ name: Android CI & Build APK
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - 'docs/**'
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-and-build:
     name: Test & Build APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -36,7 +48,7 @@ jobs:
         run: ./gradlew test --continue
 
       - name: Upload Test Results
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: unit-test-results
@@ -55,4 +67,4 @@ jobs:
         with:
           name: bullix-debug-apk
           path: app/build/outputs/apk/debug/*.apk
-          retention-days: 30
+          retention-days: 7
