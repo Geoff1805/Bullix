@@ -28,6 +28,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import fr.bullix.app.BullixApp
 import fr.bullix.app.data.repository.CollectionRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import fr.bullix.app.ui.screens.CollectionScreen
 import fr.bullix.app.ui.screens.LocationsScreen
 import fr.bullix.app.ui.screens.ScannerScreen
@@ -100,7 +103,7 @@ fun MainScreen(repository: CollectionRepository) {
                         onItemClick = {},
                         onSeriesClick = { seriesId -> selectedSeriesId = seriesId },
                         onSeedCollection = {
-                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            CoroutineScope(Dispatchers.IO).launch {
                                 repository.seedInitialDataIfEmpty()
                             }
                         }

@@ -261,10 +261,58 @@ class CollectionRepository(
         locationDao.insertLocation(locBureau)
 
         // Ajout dans la collection utilisateur
-        val uc1 = UserCollectionEntity("col_1", "default_user", "bd-1", "loc_salon_b1_c01", "Très bon", "Édition Originale", 12.0, "{\"readingStatus\":\"LU\"}", true, now, now)
-        val uc2 = UserCollectionEntity("col_2", "default_user", "bd-2", "loc_salon_b1_c01", "Neuf", "Tirage courant", 15.0, "{\"readingStatus\":\"EN_COURS\"}", false, now, now)
-        val uc3 = UserCollectionEntity("col_3", "default_user", "bd-3", null, "Bon", "Fac-similé", 10.0, "{\"readingStatus\":\"LU\",\"loanTo\":\"Alexandre\"}", false, now, now)
-        val uc4 = UserCollectionEntity("col_4", "default_user", "bd-4", "loc_bureau_pile_a_ranger", "Très bon", "Tirage standard", 7.0, "{\"readingStatus\":\"A_LIRE\"}", false, now, now)
+        val uc1 = UserCollectionEntity(
+            id = "col_1",
+            userId = "default_user",
+            albumId = "bd-1",
+            locationId = "loc_salon_b1_c01",
+            condition = "Très bon",
+            editionInfo = "Édition Originale",
+            purchasePrice = 12.0,
+            notes = "{\"readingStatus\":\"LU\"}",
+            isFavorite = true,
+            createdAt = now,
+            updatedAt = now
+        )
+        val uc2 = UserCollectionEntity(
+            id = "col_2",
+            userId = "default_user",
+            albumId = "bd-2",
+            locationId = "loc_salon_b1_c01",
+            condition = "Neuf",
+            editionInfo = "Tirage courant",
+            purchasePrice = 15.0,
+            notes = "{\"readingStatus\":\"EN_COURS\"}",
+            isFavorite = false,
+            createdAt = now,
+            updatedAt = now
+        )
+        val uc3 = UserCollectionEntity(
+            id = "col_3",
+            userId = "default_user",
+            albumId = "bd-3",
+            locationId = null,
+            condition = "Bon",
+            editionInfo = "Fac-similé",
+            purchasePrice = 10.0,
+            notes = "{\"readingStatus\":\"LU\",\"loanTo\":\"Alexandre\"}",
+            isFavorite = false,
+            createdAt = now,
+            updatedAt = now
+        )
+        val uc4 = UserCollectionEntity(
+            id = "col_4",
+            userId = "default_user",
+            albumId = "bd-4",
+            locationId = "loc_bureau_pile_a_ranger",
+            condition = "Très bon",
+            editionInfo = "Tirage standard",
+            purchasePrice = 7.0,
+            notes = "{\"readingStatus\":\"A_LIRE\"}",
+            isFavorite = false,
+            createdAt = now,
+            updatedAt = now
+        )
 
         listOf(uc1, uc2, uc3, uc4).forEach { userCollectionDao.insertItem(it) }
     }

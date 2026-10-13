@@ -10,6 +10,9 @@ import fr.bullix.app.data.BullixDatabase
 import fr.bullix.app.data.repository.CollectionRepository
 import fr.bullix.app.data.repository.SeriesCacheManager
 import fr.bullix.app.sync.SyncWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 class BullixApp : Application() {
@@ -41,7 +44,7 @@ class BullixApp : Application() {
         )
 
         setupPeriodicSync()
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.IO).launch {
             repository.seedInitialDataIfEmpty()
         }
         triggerImmediateSync()
