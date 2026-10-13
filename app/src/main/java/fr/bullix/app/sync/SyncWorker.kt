@@ -8,6 +8,9 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import fr.bullix.app.BuildConfig
 import fr.bullix.app.data.BullixDatabase
+import fr.bullix.app.data.entity.LocationEntity
+import fr.bullix.app.data.entity.UserCollectionEntity
+import fr.bullix.app.data.repository.SeriesCacheManager
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -21,6 +24,13 @@ class SyncWorker(
 
     private val db = BullixDatabase.getDatabase(appContext)
     private val syncRecordDao = db.syncRecordDao()
+    private val userCollectionDao = db.userCollectionDao()
+    private val albumDao = db.albumDao()
+    private val seriesDao = db.seriesDao()
+    private val locationDao = db.locationDao()
+    private val seriesCacheManager = SeriesCacheManager(seriesDao, albumDao)
+
+    private val prefs = appContext.getSharedPreferences("bullix_sync_prefs", Context.MODE_PRIVATE)
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -33,46 +43,147 @@ class SyncWorker(
 
     override suspend fun doWork(): Result {
         return try {
+            val apiUrl = BuildConfig.BULLIX_API_URL.ifEmpty { "https://bullix-db.alsteens.net" }
+
+            // =========================================================================
+            // ÉTAPE 1 : PUSH (Envoi des modifications locales vers Cloudflare D1)
+            // =========================================================================
             val pendingRecords = syncRecordDao.getPendingRecords()
-            if (pendingRecords.isEmpty()) {
-                Log.d("SyncWorker", "Aucun enregistrement local en attente de synchronisation.")
-                return Result.success()
+            if (pendingRecords.isNotEmpty()) {
+                Log.i("SyncWorker", "Push de ${pendingRecords.size} enregistrements vers Cloudflare ($apiUrl)...")
+
+                val pushPayload = mapOf(
+                    "user_id" to "default_user",
+                    "records" to pendingRecords.map {
+                        mapOf(
+                            "id" to it.id,
+                            "user_id" to it.userId,
+                            "entity_type" to it.entityType,
+                            "payload" to it.payload,
+                            "updated_at" to it.updatedAt,
+                            "deleted_at" to it.deletedAt
+                        )
+                    }
+                )
+
+                val jsonAdapter = moshi.adapter(Map::class.java)
+                val jsonBody = jsonAdapter.toJson(pushPayload)
+
+                val request = Request.Builder()
+                    .url("$apiUrl/api/sync/push")
+                    .post(jsonBody.toRequestBody("application/json".toMediaType()))
+                    .build()
+
+                val response = client.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val acknowledgedIds = pendingRecords.map { it.id }
+                    syncRecordDao.markAsSynced(acknowledgedIds)
+                    Log.i("SyncWorker", "✅ Push réussi : ${acknowledgedIds.size} enregistrements confirmés.")
+                } else {
+                    Log.w("SyncWorker", "Avertissement : Échec partiel du push (HTTP ${response.code})")
+                }
             }
 
-            Log.i("SyncWorker", "Push de ${pendingRecords.size} enregistrements vers Cloudflare Edge...")
+            // =========================================================================
+            // ÉTAPE 2 : PULL (Récupération des ajouts faits depuis le web ou autre terminal)
+            // =========================================================================
+            val lastSyncTime = prefs.getLong("last_sync_timestamp", 0L)
+            Log.i("SyncWorker", "Pull des mises à jour distantes depuis $lastSyncTime...")
 
-            val pushPayload = mapOf(
-                "user_id" to "default_user",
-                "records" to pendingRecords.map {
-                    mapOf(
-                        "id" to it.id,
-                        "user_id" to it.userId,
-                        "entity_type" to it.entityType,
-                        "payload" to it.payload,
-                        "updated_at" to it.updatedAt,
-                        "deleted_at" to it.deletedAt
-                    )
-                }
-            )
-
-            val jsonAdapter = moshi.adapter(Map::class.java)
-            val jsonBody = jsonAdapter.toJson(pushPayload)
-
-            val request = Request.Builder()
-                .url("${BuildConfig.BULLIX_API_URL}/api/sync/push")
-                .post(jsonBody.toRequestBody("application/json".toMediaType()))
+            val pullRequest = Request.Builder()
+                .url("$apiUrl/api/sync/pull?user_id=default_user&since=$lastSyncTime")
+                .get()
                 .build()
 
-            val response = client.newCall(request).execute()
-            if (response.isSuccessful) {
-                val acknowledgedIds = pendingRecords.map { it.id }
-                syncRecordDao.markAsSynced(acknowledgedIds)
-                Log.i("SyncWorker", "✅ Synchronisation réussie : ${acknowledgedIds.size} enregistrements confirmés.")
-                Result.success()
-            } else {
-                Log.w("SyncWorker", "Échec du push serveur : code ${response.code}")
-                Result.retry()
+            val pullResponse = client.newCall(pullRequest).execute()
+            if (pullResponse.isSuccessful) {
+                val pullBody = pullResponse.body?.string()
+                if (!pullBody.isNullOrEmpty()) {
+                    val mapAdapter = moshi.adapter(Map::class.java)
+                    val result = mapAdapter.fromJson(pullBody)
+
+                    val records = result?.get("records") as? List<Map<String, Any?>>
+                    val serverTimestamp = (result?.get("server_timestamp") as? Number)?.toLong() ?: System.currentTimeMillis()
+
+                    if (!records.isNullOrEmpty()) {
+                        Log.i("SyncWorker", "📥 Réception de ${records.size} enregistrements depuis Cloudflare...")
+
+                        for (rec in records) {
+                            val id = rec["id"] as? String ?: continue
+                            val entityType = rec["entity_type"] as? String ?: continue
+                            val payloadStr = rec["payload"] as? String ?: continue
+                            val deletedAt = (rec["deleted_at"] as? Number)?.toLong()
+                            val updatedAt = (rec["updated_at"] as? Number)?.toLong() ?: System.currentTimeMillis()
+
+                            val payloadMap = try {
+                                mapAdapter.fromJson(payloadStr) as? Map<String, Any?>
+                            } catch (e: Exception) {
+                                null
+                            }
+
+                            if (entityType == "user_collection") {
+                                if (deletedAt != null) {
+                                    userCollectionDao.deleteItem(id)
+                                    Log.d("SyncWorker", "🗑 Suppression de l'album $id de la collection locale")
+                                } else if (payloadMap != null) {
+                                    val albumId = payloadMap["album_id"] as? String
+                                    if (albumId != null) {
+                                        // Vérifier que l'album existe en local avant d'insérer dans la collection (contrainte clé étrangère)
+                                        val existingAlbum = albumDao.getAlbumById(albumId)
+                                        if (existingAlbum == null) {
+                                            // Rapatrier et mettre en cache la série
+                                            seriesCacheManager.cacheSeriesById(payloadMap["series_id"] as? String ?: albumId)
+                                        }
+
+                                        val condition = payloadMap["condition"] as? String ?: "Bon"
+                                        val locationId = payloadMap["location_id"] as? String
+                                        val notes = payloadMap["notes"] as? String
+                                        val isFavorite = (payloadMap["is_favorite"] as? Boolean) == true
+
+                                        userCollectionDao.insertItem(
+                                            UserCollectionEntity(
+                                                id = id,
+                                                userId = "default_user",
+                                                albumId = albumId,
+                                                locationId = locationId,
+                                                condition = condition,
+                                                editionInfo = payloadMap["edition_info"] as? String,
+                                                purchasePrice = (payloadMap["purchase_price"] as? Number)?.toDouble(),
+                                                notes = notes,
+                                                isFavorite = isFavorite,
+                                                createdAt = updatedAt,
+                                                updatedAt = updatedAt
+                                            )
+                                        )
+                                        Log.d("SyncWorker", "📥 Synchronisé en local : album $albumId")
+                                    }
+                                }
+                            } else if (entityType == "location" && payloadMap != null) {
+                                if (deletedAt != null) {
+                                    locationDao.deleteLocation(id)
+                                } else {
+                                    val name = payloadMap["name"] as? String ?: "Emplacement"
+                                    locationDao.insertLocation(
+                                        LocationEntity(
+                                            id = id,
+                                            userId = "default_user",
+                                            name = name,
+                                            qrCodeRef = payloadMap["qr_code_ref"] as? String,
+                                            colorTag = payloadMap["color_tag"] as? String,
+                                            updatedAt = updatedAt
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    prefs.edit().putLong("last_sync_timestamp", serverTimestamp).apply()
+                    Log.i("SyncWorker", "✅ Synchronisation complète et bidirectionnelle achevée avec succès.")
+                }
             }
+
+            Result.success()
         } catch (e: Exception) {
             Log.e("SyncWorker", "Erreur lors de la synchronisation : ${e.message}")
             Result.retry()

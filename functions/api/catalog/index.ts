@@ -3,6 +3,102 @@ interface Env {
   CACHE_KV?: KVNamespace;
 }
 
+/**
+ * Génère des variantes avec et sans accents pour garantir le matching dans SQLite D1
+ */
+function getAccentVariants(word: string): string[] {
+  const w = word.toLowerCase();
+  const variants = new Set<string>();
+  variants.add(w);
+
+  // Forme sans accent
+  const unaccented = w.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  variants.add(unaccented);
+
+  // Mots fréquents de la BD franco-belge
+  const commonMap: Record<string, string[]> = {
+    'asterix': ['astérix', 'asterix'],
+    'astérix': ['astérix', 'asterix'],
+    'epervier': ['épervier', 'epervier'],
+    'eleve': ['élève', 'eleve'],
+    'herge': ['hergé', 'herge'],
+    'franquin': ['franquin'],
+    'franco': ['franco'],
+    'belge': ['belge'],
+    'theque': ['thèque', 'theque'],
+    'bdtheque': ['bdthèque', 'bdtheque'],
+    'cle': ['clé', 'cle'],
+    'mystere': ['mystère', 'mystere'],
+    'chateau': ['château', 'chateau'],
+    'foret': ['forêt', 'foret'],
+    'tresor': ['trésor', 'tresor'],
+    'reine': ['reine'],
+    'ocean': ['océan', 'ocean'],
+    'planete': ['planète', 'planete'],
+  };
+
+  if (commonMap[unaccented]) {
+    commonMap[unaccented].forEach((v) => variants.add(v));
+  } else {
+    // Remplacement heuristique e -> é
+    if (unaccented.includes('e')) {
+      variants.add(unaccented.replace(/e/g, 'é'));
+      variants.add(unaccented.replace(/e/g, 'è'));
+    }
+    if (unaccented.includes('a')) {
+      variants.add(unaccented.replace(/a/g, 'â'));
+    }
+  }
+
+  return Array.from(variants);
+}
+
+/**
+ * Construit une clause WHERE résiliente : multi-termes, tomes combinés, sans blocage d'accents
+ */
+function buildSearchCondition(query: string): { sql: string; params: (string | number)[] } {
+  const cleanIsbn = query.replace(/[-\s]/g, '');
+  if (/^[0-9Xx]{9,17}$/.test(cleanIsbn)) {
+    return {
+      sql: '(a.isbn LIKE ? OR a.upc LIKE ?)',
+      params: [`%${cleanIsbn}%`, `%${cleanIsbn}%`],
+    };
+  }
+
+  const rawTokens = query.trim().split(/\s+/).filter((t) => t.length > 0);
+  const clauses: string[] = [];
+  const params: (string | number)[] = [];
+
+  for (const token of rawTokens) {
+    // Détection de tome / volume explicite (ex: "tome 2", "t4", "vol.3", ou juste "2" si combiné)
+    const volMatch = token.match(/^(?:tome|vol|volume|t\.?)?(\d+(?:\.\d+)?)$/i);
+    if (volMatch && (rawTokens.length > 1 || /^(?:tome|vol|volume|t\.)/i.test(token))) {
+      const volNum = parseFloat(volMatch[1]);
+      clauses.push('(a.volume_number = ? OR CAST(a.volume_number AS TEXT) LIKE ?)');
+      params.push(volNum, `%${volMatch[1]}%`);
+      continue;
+    }
+
+    // Recherche multi-champs avec variantes d'accents
+    const variants = getAccentVariants(token);
+    const subClauses: string[] = [];
+    for (const v of variants) {
+      subClauses.push(
+        '(s.title LIKE ? OR a.title LIKE ? OR a.authors LIKE ? OR a.publisher LIKE ? OR a.isbn LIKE ? OR s.type LIKE ?)'
+      );
+      const pat = `%${v}%`;
+      params.push(pat, pat, pat, pat, pat, pat);
+    }
+
+    clauses.push(`(${subClauses.join(' OR ')})`);
+  }
+
+  return {
+    sql: clauses.length > 0 ? clauses.join(' AND ') : '1=1',
+    params,
+  };
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     const { request, env } = context;
@@ -67,32 +163,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     if (query) {
-      const cleanQuery = query.replace(/[-\s]/g, '');
-      const likePattern = `%${query}%`;
-      const cleanLikePattern = `%${cleanQuery}%`;
-
-      whereClauses.push(`(
-        a.title LIKE ? OR
-        a.isbn LIKE ? OR
-        a.isbn LIKE ? OR
-        a.authors LIKE ? OR
-        a.publisher LIKE ? OR
-        s.title LIKE ? OR
-        s.type LIKE ? OR
-        CAST(a.published_year AS TEXT) LIKE ? OR
-        CAST(a.volume_number AS TEXT) LIKE ?
-      )`);
-      params.push(
-        likePattern,
-        cleanLikePattern,
-        likePattern,
-        likePattern,
-        likePattern,
-        likePattern,
-        likePattern,
-        likePattern,
-        likePattern
-      );
+      const { sql: searchSql, params: searchParams } = buildSearchCondition(query);
+      whereClauses.push(searchSql);
+      params.push(...searchParams);
     }
 
     if (whereClauses.length > 0) {

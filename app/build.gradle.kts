@@ -29,7 +29,7 @@ android {
   if (envFile.exists()) {
     envProps.load(envFile.inputStream())
   }
-  val apiUrl = envProps.getProperty("BULLIX_API_URL", "https://bullix.pages.dev")
+  val apiUrl = envProps.getProperty("BULLIX_API_URL", "https://bullix-db.alsteens.net")
 
   defaultConfig {
     applicationId = "fr.bullix.app"
@@ -44,10 +44,13 @@ android {
 
   signingConfigs {
     getByName("debug") {
-      storeFile = file("${rootDir}/app/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
+      val customKeystore = file("${rootDir}/app/debug.keystore")
+      if (customKeystore.exists()) {
+        storeFile = customKeystore
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
     }
   }
 

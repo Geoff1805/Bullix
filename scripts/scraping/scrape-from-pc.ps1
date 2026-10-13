@@ -153,39 +153,33 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-# 5. Transfert Cloudflare R2 & D1
+# 5. Injection directe dans Cloudflare D1 & Delegation du transfert d'images
+if (-not $SkipD1) {
+    Write-Host ""
+    Write-Host "[5/5] Injection des metadonnees dans Cloudflare D1 (bullix-db)..." -ForegroundColor Yellow
+    $incSql = Join-Path $projectRoot "incremental_seed.sql"
+    if (Test-Path $incSql) {
+        $content = Get-Content $incSql -Raw
+        if ($content -match "INSERT OR IGNORE") {
+            Write-Host "  -> Injection des nouveaux albums dans Cloudflare D1..." -ForegroundColor Yellow
+            npx wrangler d1 execute bullix-db --remote --file=incremental_seed.sql -y
+        } else {
+            Write-Host "  -> Base Cloudflare D1 deja a jour (aucun nouvel album a inserer)." -ForegroundColor Green
+        }
+        Remove-Item -Path $incSql -Force -ErrorAction SilentlyContinue
+    } else {
+        Write-Host "  -> Injection du batch complet dans Cloudflare D1..." -ForegroundColor Yellow
+        npx wrangler d1 execute bullix-db --remote --file=generated_seed.sql -y
+    }
+    Write-Host "  ✅ Metadonnees injectees dans D1 avec succes !" -ForegroundColor Green
+    Write-Host "  ℹ️ Les jaquettes seront automatiquement rapatriees et mises en cache dans R2" -ForegroundColor Cyan
+    Write-Host "     a la volee par Cloudflare Edge (zero consommation reseau locale)." -ForegroundColor Cyan
+}
+
 if (-not $SkipUploadR2 -and $env:CLOUDFLARE_API_TOKEN -and $env:CLOUDFLARE_ACCOUNT_ID) {
     Write-Host ""
-    Write-Host "[5/5] Transfert direct des jaquettes vers Cloudflare R2..." -ForegroundColor Yellow
+    Write-Host "[Optionnel] Transfert local force vers R2 (-SkipUploadR2 pour desactiver)..." -ForegroundColor DarkGray
     npx tsx scripts/scraping/upload_covers_to_r2.ts scraped_data.json generated_seed.sql
-
-    if (-not $SkipD1) {
-        Write-Host ""
-        $incSql = Join-Path $projectRoot "incremental_seed.sql"
-        if (Test-Path $incSql) {
-            $content = Get-Content $incSql -Raw
-            if ($content -match "INSERT OR IGNORE") {
-                Write-Host "Injection des nouveaux albums dans Cloudflare D1 (bullix-db)..." -ForegroundColor Yellow
-                npx wrangler d1 execute bullix-db --remote --file=incremental_seed.sql -y
-            } else {
-                Write-Host "Base Cloudflare D1 deja a jour (aucun nouvel album a inserer lors de ce passage)." -ForegroundColor Green
-            }
-            Remove-Item -Path $incSql -Force -ErrorAction SilentlyContinue
-        } else {
-            Write-Host "Injection dans Cloudflare D1 (bullix-db)..." -ForegroundColor Yellow
-            npx wrangler d1 execute bullix-db --remote --file=generated_seed.sql -y
-        }
-    }
-
-    # Nettoyage systématique du dossier temporaire d'upload
-    $tmpDir = Join-Path $projectRoot ".tmp_r2_upload"
-    if (Test-Path $tmpDir) {
-        Remove-Item -Path $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
-    }
-} else {
-    Write-Host ""
-    Write-Host "[INFO] Envoi Cloudflare ignore (jetons non configures ou option -SkipUploadR2 activee)." -ForegroundColor DarkYellow
-    Write-Host "Les fichiers locaux scraped_data.json et generated_seed.sql sont prets." -ForegroundColor Green
 }
 
 Write-Host ""
