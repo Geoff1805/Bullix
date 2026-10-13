@@ -1,12 +1,15 @@
 package fr.bullix.app.ui
 
 import androidx.compose.foundation.layout.padding
+import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -21,7 +24,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import fr.bullix.app.BullixApp
 import fr.bullix.app.data.repository.CollectionRepository
 import fr.bullix.app.ui.screens.CollectionScreen
 import fr.bullix.app.ui.screens.LocationsScreen
@@ -46,12 +51,21 @@ fun MainScreen(repository: CollectionRepository) {
     } else {
         Scaffold(
             topBar = {
+                val context = LocalContext.current
                 TopAppBar(
                     title = {
                         Text(
                             text = "Bullix",
                             fontWeight = FontWeight.Bold
                         )
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            (context.applicationContext as? BullixApp)?.triggerImmediateSync()
+                            Toast.makeText(context, "Synchronisation avec le Cloud D1 lancée...", Toast.LENGTH_SHORT).show()
+                        }) {
+                            Icon(Icons.Default.Sync, contentDescription = "Synchroniser avec le cloud")
+                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors()
                 )

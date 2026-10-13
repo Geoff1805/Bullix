@@ -25,8 +25,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (records.length === 0 && since === 0) {
       const { results: existingColl } = await env.DB.prepare(`
         SELECT uc.id, uc.user_id, uc.album_id, uc.location_id, uc.condition, uc.edition_info,
-               uc.purchase_price, uc.notes, uc.is_favorite, uc.updated_at, uc.deleted_at
+               uc.purchase_price, uc.notes, uc.is_favorite, uc.updated_at, uc.deleted_at,
+               a.title AS album_title, a.volume_number, a.isbn, a.authors, a.publisher, a.published_year, a.cover_image_url,
+               COALESCE(s.id, a.series_id) AS series_id, s.title AS series_title, s.type AS series_type
         FROM user_collection uc
+        LEFT JOIN albums a ON uc.album_id = a.id
+        LEFT JOIN series s ON a.series_id = s.id
         WHERE uc.user_id = ? AND uc.deleted_at IS NULL
       `)
         .bind(userId)
@@ -46,6 +50,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             purchase_price: item.purchase_price,
             notes: item.notes,
             is_favorite: item.is_favorite === 1,
+            album_title: item.album_title,
+            volume_number: item.volume_number,
+            isbn: item.isbn,
+            authors: item.authors,
+            publisher: item.publisher,
+            published_year: item.published_year,
+            cover_image_url: item.cover_image_url,
+            series_id: item.series_id,
+            series_title: item.series_title,
+            series_type: item.series_type,
           }),
           updated_at: item.updated_at,
           deleted_at: item.deleted_at,

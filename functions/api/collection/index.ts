@@ -17,6 +17,16 @@ interface CollectionItemInput {
   is_wishlist?: number | boolean;
   loan_to?: string | null;
   loan_date?: string | null;
+  album_title?: string;
+  series_title?: string;
+  series_id?: string;
+  series_type?: string;
+  volume_number?: number;
+  authors?: string;
+  publisher?: string;
+  published_year?: number;
+  isbn?: string;
+  cover_image_url?: string;
 }
 
 /**
@@ -35,7 +45,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       return new Response(JSON.stringify({ error: 'D1 non lié' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 
-    // Récupération de la collection avec jointures complètes sur albums et séries
+    // Récupération de la collection avec jointures LEFT JOIN résilientes sur albums et séries
     const { results } = await env.DB.prepare(`
       SELECT 
         uc.id AS collection_id,
@@ -50,24 +60,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         uc.is_favorite,
         uc.created_at,
         uc.updated_at,
-        a.title AS album_title,
-        a.volume_number,
+        COALESCE(a.title, 'Album ' || uc.album_id) AS album_title,
+        COALESCE(a.volume_number, 1) AS volume_number,
         a.isbn,
         a.authors,
         a.publisher,
         a.published_year,
         a.cover_image_url,
-        s.id AS series_id,
-        s.title AS series_title,
-        s.type AS series_type,
-        s.status AS series_status,
+        COALESCE(s.id, a.series_id, 'series_inconnue') AS series_id,
+        COALESCE(s.title, 'Sans série') AS series_title,
+        COALESCE(s.type, 'Franco-belge') AS series_type,
+        COALESCE(s.status, 'En cours') AS series_status,
         loc.name AS location_name
       FROM user_collection uc
-      JOIN albums a ON uc.album_id = a.id
-      JOIN series s ON a.series_id = s.id
+      LEFT JOIN albums a ON uc.album_id = a.id
+      LEFT JOIN series s ON a.series_id = s.id
       LEFT JOIN locations loc ON uc.location_id = loc.id
       WHERE uc.user_id = ? AND uc.deleted_at IS NULL
-      ORDER BY s.title ASC, a.volume_number ASC
+      ORDER BY COALESCE(s.title, a.title, 'Sans titre') ASC, a.volume_number ASC
     `)
       .bind(userId)
       .all();
@@ -115,6 +125,37 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const userId = body.user_id || 'default_user';
     const id = body.id || `col_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const now = Date.now();
+
+    // Si métadonnées fournies, auto-insertion de la série et de l'album
+    if (body.series_title) {
+      const sId = body.series_id || `ser_${body.series_title.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 30)}`;
+      await env.DB.prepare(`
+        INSERT INTO series (id, title, type, status, created_at, updated_at)
+        VALUES (?, ?, ?, 'En cours', ?, ?)
+        ON CONFLICT(id) DO NOTHING
+      `).bind(sId, body.series_title, body.series_type || 'Franco-belge', now, now).run();
+
+      await env.DB.prepare(`
+        INSERT INTO albums (id, series_id, volume_number, title, isbn, authors, publisher, published_year, cover_image_url, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          title = COALESCE(excluded.title, albums.title),
+          cover_image_url = COALESCE(excluded.cover_image_url, albums.cover_image_url),
+          updated_at = excluded.updated_at
+      `).bind(
+        body.album_id,
+        sId,
+        body.volume_number || 1,
+        body.album_title || 'Album',
+        body.isbn || null,
+        body.authors || null,
+        body.publisher || null,
+        body.published_year || null,
+        body.cover_image_url || null,
+        now,
+        now
+      ).run();
+    }
 
     // Insertion ou mise à jour dans user_collection
     await env.DB.prepare(`

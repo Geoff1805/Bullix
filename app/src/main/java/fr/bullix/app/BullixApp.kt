@@ -41,6 +41,23 @@ class BullixApp : Application() {
         )
 
         setupPeriodicSync()
+        triggerImmediateSync()
+    }
+
+    fun triggerImmediateSync() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val syncRequest = androidx.work.OneTimeWorkRequestBuilder<SyncWorker>()
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniqueWork(
+            "bullix_immediate_sync",
+            androidx.work.ExistingWorkPolicy.REPLACE,
+            syncRequest
+        )
     }
 
     private fun setupPeriodicSync() {

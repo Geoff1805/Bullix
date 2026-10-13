@@ -128,11 +128,45 @@ class SyncWorker(
                                 } else if (payloadMap != null) {
                                     val albumId = payloadMap["album_id"] as? String
                                     if (albumId != null) {
-                                        // Vérifier que l'album existe en local avant d'insérer dans la collection (contrainte clé étrangère)
-                                        val existingAlbum = albumDao.getAlbumById(albumId)
+                                        var existingAlbum = albumDao.getAlbumById(albumId)
                                         if (existingAlbum == null) {
                                             // Rapatrier et mettre en cache la série
-                                            seriesCacheManager.cacheSeriesById(payloadMap["series_id"] as? String ?: albumId)
+                                            val seriesIdParam = payloadMap["series_id"] as? String ?: albumId
+                                            seriesCacheManager.cacheSeriesById(seriesIdParam)
+                                            existingAlbum = albumDao.getAlbumById(albumId)
+                                        }
+
+                                        // Si toujours absent localement, création résiliente de la série et de l'album pour satisfaire la clé étrangère
+                                        if (existingAlbum == null) {
+                                            val seriesId = (payloadMap["series_id"] as? String)?.ifEmpty { null } ?: "ser_$albumId"
+                                            val seriesTitle = (payloadMap["series_title"] as? String)?.ifEmpty { null } ?: "Série importée"
+                                            val seriesType = (payloadMap["series_type"] as? String) ?: "Franco-belge"
+
+                                            if (seriesDao.getSeriesById(seriesId) == null) {
+                                                seriesDao.insertSeries(
+                                                    fr.bullix.app.data.entity.SeriesEntity(
+                                                        id = seriesId,
+                                                        title = seriesTitle,
+                                                        type = seriesType,
+                                                        status = "En cours"
+                                                    )
+                                                )
+                                            }
+
+                                            val albumTitle = payloadMap["album_title"] as? String ?: "Album $albumId"
+                                            val volNum = (payloadMap["volume_number"] as? Number)?.toDouble() ?: 1.0
+                                            val albumEntity = fr.bullix.app.data.entity.AlbumEntity(
+                                                id = albumId,
+                                                seriesId = seriesId,
+                                                volumeNumber = volNum,
+                                                title = albumTitle,
+                                                isbn = payloadMap["isbn"] as? String,
+                                                authors = payloadMap["authors"] as? String,
+                                                publisher = payloadMap["publisher"] as? String,
+                                                publishedYear = (payloadMap["published_year"] as? Number)?.toInt(),
+                                                coverImageUrl = payloadMap["cover_image_url"] as? String
+                                            )
+                                            albumDao.insertAlbum(albumEntity)
                                         }
 
                                         val condition = payloadMap["condition"] as? String ?: "Bon"

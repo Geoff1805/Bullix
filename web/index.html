@@ -2,8 +2,14 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Bullix — Gestionnaire de Collection BD Offline-First</title>
+  <meta name="theme-color" content="#ffb300" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Bullix" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="apple-touch-icon" href="icon.png" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
@@ -242,6 +248,168 @@
       from { transform: translateY(100%); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
     }
+
+    /* ==========================================================================
+       OPTIMISATION RESPONSIVE SPÉCIFIQUE SMARTPHONES / GSM
+       ========================================================================== */
+    @media (max-width: 680px) {
+      body.container {
+        padding-left: 0.6rem;
+        padding-right: 0.6rem;
+      }
+      header nav {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.6rem;
+      }
+      header nav ul {
+        display: flex;
+        justify-content: space-between;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+      }
+      .tab-nav {
+        margin-left: -0.6rem;
+        margin-right: -0.6rem;
+        padding-left: 0.6rem;
+        padding-right: 0.6rem;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      .tab-btn {
+        padding: 0.55rem 0.8rem;
+        font-size: 0.88rem;
+      }
+      .album-grid {
+        grid-template-columns: 1fr;
+        gap: 0.85rem;
+      }
+      .album-card {
+        padding: 0.8rem;
+      }
+      .album-cover {
+        width: 65px;
+        height: 92px;
+      }
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.6rem;
+      }
+      .stat-card {
+        padding: 0.8rem 0.5rem;
+      }
+      .stat-number {
+        font-size: 1.6rem;
+      }
+      .filter-pills {
+        gap: 0.3rem;
+      }
+      .filter-pill {
+        padding: 0.3rem 0.65rem;
+        font-size: 0.78rem;
+      }
+      .pagination-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.6rem;
+      }
+      .pagination-controls {
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+    }
+
+    /* Mode liste compacte (idéal pour navigation rapide au pouce sur GSM) */
+    .album-grid.compact-list {
+      grid-template-columns: 1fr !important;
+      gap: 0.5rem;
+    }
+    .album-grid.compact-list .album-card {
+      padding: 0.6rem;
+      flex-direction: row;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .album-grid.compact-list .album-header {
+      margin-bottom: 0;
+      flex: 1;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .album-grid.compact-list .album-cover {
+      width: 48px;
+      height: 68px;
+    }
+    .album-grid.compact-list .album-details {
+      display: none;
+    }
+    .album-grid.compact-list .album-actions {
+      margin-top: 0;
+      min-width: 140px;
+      gap: 0.3rem;
+    }
+    .album-grid.compact-list .action-row button, 
+    .album-grid.compact-list .action-row select {
+      padding: 0.25rem 0.4rem;
+      font-size: 0.75rem;
+    }
+
+    /* Modal Scanner Caméra pour GSM */
+    #scanner-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.85);
+      z-index: 10000;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    }
+    #scanner-modal.open {
+      display: flex;
+    }
+    .scanner-box {
+      background: var(--pico-card-background-color);
+      border-radius: 12px;
+      padding: 1.2rem;
+      width: 100%;
+      max-width: 420px;
+      position: relative;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .scanner-viewport-wrapper {
+      position: relative;
+      width: 100%;
+      height: 240px;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 0.8rem 0;
+    }
+    #scanner-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .scanner-laser {
+      position: absolute;
+      top: 50%;
+      left: 10%;
+      right: 10%;
+      height: 2px;
+      background: #ffb300;
+      box-shadow: 0 0 10px #ffb300;
+      animation: scanLaser 2s infinite ease-in-out alternate;
+    }
+    @keyframes scanLaser {
+      0% { top: 15%; }
+      100% { top: 85%; }
+    }
   </style>
 </head>
 <body class="container">
@@ -306,19 +474,27 @@
         <button class="filter-pill" onclick="setCollectionFilter('LOAN', this)">🤝 Prêtés (<span id="count-loan">0</span>)</button>
       </div>
 
-      <!-- Recherche instantanée MiniSearch -->
+      <!-- Recherche instantanée MiniSearch et contrôles GSM -->
       <fieldset role="group">
         <input 
           type="search" 
           id="collection-search-input" 
-          placeholder="🔎 Rechercher dans ma BDthèque (titre, série, auteur, éditeur, casier, ISBN...)" 
+          placeholder="🔎 Rechercher dans ma BDthèque (titre, série, auteur, ISBN...)" 
           oninput="filterCollection()" 
         />
+        <button type="button" class="outline" onclick="startGsmScanner()" title="Scanner un code-barres avec la caméra du smartphone">
+          📷 Scan GSM
+        </button>
         <button type="button" class="secondary" onclick="clearCollectionSearch()">Effacer</button>
       </fieldset>
 
-      <div style="margin-bottom: 1rem; font-size: 0.85rem; color: var(--pico-muted-color);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem; font-size: 0.85rem; color: var(--pico-muted-color);">
         <span id="collection-stats">Chargement...</span>
+        <div style="display: flex; gap: 0.4rem;">
+          <button id="view-mode-btn" class="outline secondary" style="padding: 0.25rem 0.55rem; font-size: 0.78rem; margin: 0;" onclick="toggleViewMode()">
+            📱 Vue Liste
+          </button>
+        </div>
       </div>
 
       <div id="collection-list" class="album-grid"></div>
@@ -532,6 +708,29 @@
       </div>
     </section>
   </main>
+
+  <!-- Modal Scanner Caméra pour GSM -->
+  <div id="scanner-modal" onclick="if(event.target===this) stopGsmScanner()">
+    <div class="scanner-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+        <h4 style="margin: 0;">📷 Scanner Code-barres GSM</h4>
+        <button class="outline secondary" style="padding: 0.2rem 0.5rem; margin: 0; font-size: 0.8rem;" onclick="stopGsmScanner()">✕</button>
+      </div>
+      <p style="font-size: 0.82rem; margin-bottom: 0.5rem; color: var(--pico-muted-color);">
+        Pointez la caméra de votre smartphone vers le code-barres ISBN (EAN-13) au dos de l'album.
+      </p>
+      <div class="scanner-viewport-wrapper">
+        <video id="scanner-video" playsinline autoplay muted></video>
+        <div class="scanner-laser"></div>
+      </div>
+      <div id="scanner-status" style="font-size: 0.85rem; font-weight: bold; color: var(--pico-primary);">
+        Recherche du code-barres...
+      </div>
+      <button class="outline" style="margin-top: 0.8rem; width: 100%; padding: 0.4rem;" onclick="stopGsmScanner()">
+        Annuler
+      </button>
+    </div>
+  </div>
 
   <!-- Conteneur Toasts -->
   <div id="toast-container"></div>
@@ -1077,25 +1276,200 @@
     }
 
     // ============================================================================
-    // SYNCHRONISATION BIDIRECTIONNELLE AVEC CLOUDFLARE D1
+    // MODE D'AFFICHAGE (GRILLE / LISTE COMPACTE POUR GSM)
+    // ============================================================================
+    let currentViewMode = localStorage.getItem('bullix_view_mode') || 'grid';
+
+    function toggleViewMode() {
+      currentViewMode = currentViewMode === 'grid' ? 'list' : 'grid';
+      localStorage.setItem('bullix_view_mode', currentViewMode);
+      applyViewMode();
+    }
+
+    function applyViewMode() {
+      const listEl = document.getElementById('collection-list');
+      const btnEl = document.getElementById('view-mode-btn');
+      if (!listEl) return;
+      if (currentViewMode === 'list') {
+        listEl.classList.add('compact-list');
+        if (btnEl) btnEl.textContent = '🖼 Vue Grille';
+      } else {
+        listEl.classList.remove('compact-list');
+        if (btnEl) btnEl.textContent = '📱 Vue Liste';
+      }
+    }
+
+    // ============================================================================
+    // SCANNER CODE-BARRES HTML5 CAMÉRA POUR SMARTPHONES / GSM
+    // ============================================================================
+    let gsmScannerStream = null;
+    let gsmScannerInterval = null;
+
+    async function startGsmScanner() {
+      const modal = document.getElementById('scanner-modal');
+      const video = document.getElementById('scanner-video');
+      const statusEl = document.getElementById('scanner-status');
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showToast("L'appareil photo n'est pas accessible sur ce navigateur", "warn");
+        return;
+      }
+
+      modal.classList.add('open');
+      statusEl.textContent = "Initialisation de la caméra arrière...";
+
+      try {
+        gsmScannerStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } }
+        });
+        video.srcObject = gsmScannerStream;
+        await video.play();
+
+        statusEl.textContent = "Caméra prête. Visez le code-barres ISBN (EAN-13)...";
+
+        // Détection via BarcodeDetector natif HTML5 (Standard Chrome / Chromium Android)
+        if ('BarcodeDetector' in window) {
+          const barcodeDetector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128'] });
+          gsmScannerInterval = setInterval(async () => {
+            if (video.readyState < 2) return;
+            try {
+              const barcodes = await barcodeDetector.detect(video);
+              if (barcodes && barcodes.length > 0) {
+                const detectedIsbn = barcodes[0].rawValue;
+                handleScannedIsbn(detectedIsbn);
+              }
+            } catch (err) {}
+          }, 250);
+        } else {
+          statusEl.textContent = "Visez le code-barres. Si non détecté automatiquement, saisissez le code dans la recherche.";
+        }
+      } catch (err) {
+        console.error("Erreur accès caméra :", err);
+        statusEl.textContent = "Accès caméra refusé ou indisponible.";
+        showToast("Impossible d'accéder à la caméra : " + err.message, "warn");
+      }
+    }
+
+    function stopGsmScanner() {
+      const modal = document.getElementById('scanner-modal');
+      if (modal) modal.classList.remove('open');
+      if (gsmScannerInterval) {
+        clearInterval(gsmScannerInterval);
+        gsmScannerInterval = null;
+      }
+      if (gsmScannerStream) {
+        gsmScannerStream.getTracks().forEach(t => t.stop());
+        gsmScannerStream = null;
+      }
+    }
+
+    function handleScannedIsbn(isbn) {
+      if (!isbn) return;
+      stopGsmScanner();
+      try { navigator.vibrate?.([80]); } catch {}
+
+      const cleanIsbn = isbn.replace(/[-\s]/g, '');
+      const existing = myCollection.find(i => i.isbn && i.isbn.replace(/[-\s]/g, '') === cleanIsbn);
+
+      if (existing) {
+        showToast(`✅ DÉJÀ POSSÉDÉ : "${existing.albumTitle}" (${existing.seriesTitle} T.${existing.volumeNumber})`, 'success');
+        document.getElementById('collection-search-input').value = existing.albumTitle;
+        filterCollection();
+      } else {
+        showToast(`🔍 Code ISBN détecté (${cleanIsbn}) : Recherche catalogue central...`, 'info');
+        switchTab('catalog');
+        document.getElementById('catalog-search-input').value = cleanIsbn;
+        catalogState.query = cleanIsbn;
+        fetchCatalog(1);
+      }
+    }
+
+    // ============================================================================
+    // SYNCHRONISATION BIDIRECTIONNELLE ROBUSTE AVEC CLOUDFLARE D1 (GSM & EN LIGNE)
     // ============================================================================
 
+    function getSyncQueue() {
+      try {
+        return JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    function saveSyncQueue(queue) {
+      try {
+        localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+      } catch {}
+      updateSyncStatus(navigator.onLine);
+    }
+
+    function enqueueSyncAction(action) {
+      const queue = getSyncQueue();
+      queue.push({ ...action, timestamp: Date.now() });
+      saveSyncQueue(queue);
+    }
+
+    async function flushSyncQueue() {
+      const queue = getSyncQueue();
+      if (queue.length === 0) return;
+
+      const remaining = [];
+      let successCount = 0;
+
+      for (const item of queue) {
+        try {
+          if (item.type === 'POST') {
+            await fetch('/api/collection', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item.payload)
+            });
+            successCount++;
+          } else if (item.type === 'DELETE') {
+            await fetch(`/api/collection?id=${encodeURIComponent(item.id)}&user_id=default_user`, {
+              method: 'DELETE'
+            });
+            successCount++;
+          }
+        } catch (e) {
+          remaining.push(item);
+        }
+      }
+
+      saveSyncQueue(remaining);
+      if (successCount > 0) {
+        showToast(`⚡ ${successCount} action(s) hors-ligne synchronisée(s) avec succès !`, 'success');
+      }
+    }
+
     async function syncItemToCloud(item) {
+      const payload = {
+        id: item.id,
+        album_id: item.id,
+        user_id: 'default_user',
+        condition: item.condition,
+        notes: JSON.stringify({ readingStatus: item.readingStatus, loanTo: item.loanTo }),
+        album_title: item.albumTitle,
+        series_title: item.seriesTitle,
+        volume_number: item.volumeNumber,
+        authors: item.authors,
+        publisher: item.publisher,
+        published_year: item.publishedYear,
+        isbn: item.isbn,
+        series_type: item.seriesType,
+        cover_image_url: item.coverUrl
+      };
+
       try {
         await fetch('/api/collection', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: item.id,
-            album_id: item.id,
-            user_id: 'default_user',
-            condition: item.condition,
-            notes: JSON.stringify({ readingStatus: item.readingStatus, loanTo: item.loanTo }),
-          })
+          body: JSON.stringify(payload)
         });
         updateSyncStatus(true);
       } catch (e) {
-        console.warn("Échec sync cloud (mode hors-ligne actif) :", e);
+        console.warn("Échec sync cloud (mise en file d'attente hors-ligne) :", e);
+        enqueueSyncAction({ type: 'POST', payload });
         updateSyncStatus(false);
       }
     }
@@ -1107,7 +1481,8 @@
         });
         updateSyncStatus(true);
       } catch (e) {
-        console.warn("Échec suppression cloud :", e);
+        console.warn("Échec suppression cloud (mise en file d'attente hors-ligne) :", e);
+        enqueueSyncAction({ type: 'DELETE', id });
         updateSyncStatus(false);
       }
     }
@@ -1167,18 +1542,30 @@
     function updateSyncStatus(isOnline) {
       const badge = document.getElementById('sync-status-badge');
       if (!badge) return;
-      if (isOnline) {
-        badge.className = 'badge badge-read';
-        badge.textContent = '☁️ Cloud D1 Connecté';
-      } else {
+      const pendingCount = getSyncQueue().length;
+
+      if (!isOnline || !navigator.onLine) {
         badge.className = 'badge badge-tech';
-        badge.textContent = '⚡ Mode Hors-Ligne';
+        badge.textContent = pendingCount > 0 ? `⚡ Hors-Ligne (${pendingCount} en attente)` : '⚡ Mode Hors-Ligne (GSM)';
+      } else if (pendingCount > 0) {
+        badge.className = 'badge badge-reading';
+        badge.textContent = `🔄 Synchro en cours (${pendingCount} en attente)...`;
+      } else {
+        badge.className = 'badge badge-read';
+        badge.textContent = '📱 GSM & En Ligne Synchronisés';
       }
     }
 
     async function manualSync() {
-      showToast("Synchronisation en cours avec Cloudflare D1...", "info");
+      const badge = document.getElementById('sync-status-badge');
+      if (badge) {
+        badge.className = 'badge badge-reading';
+        badge.textContent = '🔄 Synchronisation en cours...';
+      }
+      showToast("Synchronisation bidirectionnelle GSM & Cloudflare D1 en cours...", "info");
+      await flushSyncQueue();
       await pullCloudCollection();
+      updateSyncStatus(navigator.onLine);
     }
 
     // ============================================================================
@@ -1522,9 +1909,24 @@
     // Démarrage de l'application
     document.addEventListener('DOMContentLoaded', () => {
       initSearchEngine();
+      applyViewMode();
       renderCollection(myCollection);
       updateFilterCounts();
+      updateSyncStatus(navigator.onLine);
+      flushSyncQueue();
       pullCloudCollection();
+    });
+
+    window.addEventListener('online', () => {
+      showToast("Connexion Internet rétablie : synchronisation automatique...", "info");
+      flushSyncQueue();
+      pullCloudCollection();
+      updateSyncStatus(true);
+    });
+
+    window.addEventListener('offline', () => {
+      showToast("Mode hors-ligne actif (GSM) : vos modifications sont sauvegardées localement.", "warn");
+      updateSyncStatus(false);
     });
   </script>
 </body>
