@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Script tout-en-un pour executer le scraping de Bullix depuis votre PC personnel (IP residentielle).
     Permet d'extraire BDtheque et BDvore sans blocage WAF / Cloudflare 403, 
@@ -171,14 +171,14 @@ if (-not $SkipD1) {
         Write-Host "  -> Injection du batch complet dans Cloudflare D1..." -ForegroundColor Yellow
         npx wrangler d1 execute bullix-db --remote --file=generated_seed.sql -y
     }
-    Write-Host "  ✅ Metadonnees injectees dans D1 avec succes !" -ForegroundColor Green
-    Write-Host "  ℹ️ Les jaquettes seront automatiquement rapatriees et mises en cache dans R2" -ForegroundColor Cyan
-    Write-Host "     a la volee par Cloudflare Edge (zero consommation reseau locale)." -ForegroundColor Cyan
+    Write-Host "  [OK] Metadonnees injectees dans D1 avec succes !" -ForegroundColor Green
+    Write-Host "  [INFO] Les jaquettes seront automatiquement rapatriees et mises en cache dans R2" -ForegroundColor Cyan
+    Write-Host "         a la volee par Cloudflare Edge (zero consommation reseau locale)." -ForegroundColor Cyan
 }
 
 if (-not $SkipUploadR2 -and $env:CLOUDFLARE_API_TOKEN -and $env:CLOUDFLARE_ACCOUNT_ID) {
     Write-Host ""
-    Write-Host "[Optionnel] Transfert local force vers R2 (-SkipUploadR2 pour desactiver)..." -ForegroundColor DarkGray
+    Write-Host "  [Optionnel] Transfert local force vers R2 (-SkipUploadR2 pour desactiver)..." -ForegroundColor DarkGray
     npx tsx scripts/scraping/upload_covers_to_r2.ts scraped_data.json generated_seed.sql
 }
 
