@@ -417,35 +417,62 @@
       </form>
 
       <!-- Filtres du catalogue -->
-      <div class="catalog-filters" style="display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: end; margin-bottom: 1rem;">
-        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 140px;">Type
-          <select id="filter-type" onchange="applyCatalogFilters()" style="margin: 0;"><option value="">Tous</option></select>
+      <!-- Filtres du catalogue -->
+      <div class="catalog-filters" style="display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: end; margin-bottom: 0.8rem;">
+        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 140px;">Type / Genre
+          <select id="filter-type" onchange="applyCatalogFilters()" style="margin: 0;"><option value="">Tous les types</option></select>
         </label>
-        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 180px;">Éditeur
-          <select id="filter-publisher" onchange="applyCatalogFilters()" style="margin: 0;"><option value="">Tous</option></select>
+        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 140px;">Statut série
+          <select id="filter-series-status" onchange="applyCatalogFilters()" style="margin: 0;"><option value="">Tous les statuts</option></select>
         </label>
-        <label style="margin: 0; font-size: 0.8rem; flex: 0 1 100px;">Année de
+        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 160px;">Éditeur
+          <select id="filter-publisher" onchange="applyCatalogFilters()" style="margin: 0;"><option value="">Tous les éditeurs</option></select>
+        </label>
+        <label style="margin: 0; font-size: 0.8rem; flex: 0 1 90px;">Année de
           <input type="number" id="filter-year-from" min="1800" max="2100" placeholder="1950" onchange="applyCatalogFilters()" style="margin: 0;" />
         </label>
-        <label style="margin: 0; font-size: 0.8rem; flex: 0 1 100px;">à
+        <label style="margin: 0; font-size: 0.8rem; flex: 0 1 90px;">à
           <input type="number" id="filter-year-to" min="1800" max="2100" placeholder="2026" onchange="applyCatalogFilters()" style="margin: 0;" />
         </label>
-        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 140px;">Couverture
+        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 120px;">Couverture
           <select id="filter-cover" onchange="applyCatalogFilters()" style="margin: 0;">
             <option value="">Toutes</option>
             <option value="1">Avec couverture</option>
             <option value="0">Sans couverture</option>
           </select>
         </label>
-        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 160px;">Trier par
-          <select id="filter-sort" onchange="applyCatalogFilters()" style="margin: 0;">
-            <option value="series">Série / tome</option>
-            <option value="title">Titre de l'album</option>
-            <option value="year_desc">Plus récents</option>
-            <option value="year_asc">Plus anciens</option>
+        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 120px;">Tome
+          <select id="filter-first-volume" onchange="applyCatalogFilters()" style="margin: 0;">
+            <option value="">Tous les tomes</option>
+            <option value="1">Tomes 1 uniquement</option>
           </select>
         </label>
-        <button type="button" class="secondary outline" onclick="resetCatalogFilters()" style="margin: 0; width: auto;">Réinitialiser</button>
+        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 130px;">Ma BDthèque
+          <select id="filter-collection-status" onchange="applyCatalogFilters()" style="margin: 0;">
+            <option value="">Tout le catalogue</option>
+            <option value="missing">Non possédés uniquement</option>
+            <option value="owned">Déjà possédés</option>
+          </select>
+        </label>
+        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 160px;">Trier par
+          <select id="filter-sort" onchange="applyCatalogFilters()" style="margin: 0;">
+            <option value="series">Série A → Z (tome croissant)</option>
+            <option value="series_desc">Série Z → A</option>
+            <option value="title">Titre de l'album (A → Z)</option>
+            <option value="title_desc">Titre de l'album (Z → A)</option>
+            <option value="year_desc">Parution (Plus récents d'abord)</option>
+            <option value="year_asc">Parution (Plus anciens d'abord)</option>
+            <option value="volume_asc">Numéro de tome (croissant)</option>
+            <option value="volume_desc">Numéro de tome (décroissant)</option>
+          </select>
+        </label>
+        <button type="button" class="secondary outline" onclick="resetCatalogFilters()" style="margin: 0; width: auto;" title="Réinitialiser tous les filtres">↺ Réinitialiser</button>
+      </div>
+
+      <!-- Bandeau des filtres actifs -->
+      <div id="catalog-active-filters" style="display: none; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.8rem; font-size: 0.8rem;">
+        <span style="color: var(--pico-muted-color); font-weight: 600;">Filtres actifs :</span>
+        <div id="catalog-active-filter-tags" style="display: flex; gap: 0.4rem; flex-wrap: wrap;"></div>
       </div>
 
       <!-- Barre de pagination supérieure -->
@@ -475,7 +502,6 @@
         </div>
       </div>
 
-
       <!-- Conteneur d'affichage du catalogue -->
       <div id="catalog-content">
         <div id="catalog-grid" class="album-grid"></div>
@@ -483,9 +509,26 @@
 
       <!-- Barre de pagination inférieure -->
       <div class="pagination-bar" id="catalog-pagination-bottom">
-        <button class="outline" id="catalog-prev-btn-2" onclick="prevCatalogPage()" disabled>◀ Précédente</button>
-        <span id="catalog-page-indicator-2" style="font-size: 0.85rem; font-weight: bold;">Page 1</span>
-        <button class="outline" id="catalog-next-btn-2" onclick="nextCatalogPage()" disabled>Suivante ▶</button>
+        <label style="margin: 0; font-size: 0.85rem; display: flex; align-items: center; gap: 0.3rem;">
+          Par page :
+          <select id="catalog-limit-select-2" onchange="changeCatalogLimit(this.value)" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; margin: 0; width: auto;">
+            <option value="12">12</option>
+            <option value="24" selected>24</option>
+            <option value="48">48</option>
+            <option value="96">96</option>
+          </select>
+        </label>
+        <div class="pagination-controls">
+          <button class="outline" id="catalog-first-btn-2" onclick="fetchCatalog(1, true)" disabled title="Première page">⏮</button>
+          <button class="outline" id="catalog-prev-btn-2" onclick="prevCatalogPage(true)" disabled>◀ Précédente</button>
+          <span style="font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; gap: 0.3rem;">
+            Page
+            <input type="number" id="catalog-page-input-2" min="1" value="1" onchange="goToCatalogPage(this.value, true)" onkeydown="if(event.key==='Enter'){goToCatalogPage(this.value, true)}" style="width: 5rem; margin: 0; padding: 0.2rem 0.4rem; font-size: 0.85rem; text-align: center;" />
+            / <span id="catalog-page-total-2">1</span>
+          </span>
+          <button class="outline" id="catalog-next-btn-2" onclick="nextCatalogPage(true)" disabled>Suivante ▶</button>
+          <button class="outline" id="catalog-last-btn-2" onclick="fetchCatalog(catalogState.totalPages, true)" disabled title="Dernière page">⏭</button>
+        </div>
       </div>
     </section>
   </main>
@@ -1155,28 +1198,83 @@
 
     function changeCatalogLimit(newLimit) {
       catalogState.limit = parseInt(newLimit, 10);
+      const sel1 = document.getElementById('catalog-limit-select');
+      const sel2 = document.getElementById('catalog-limit-select-2');
+      if (sel1) sel1.value = newLimit;
+      if (sel2) sel2.value = newLimit;
       fetchCatalog(1);
     }
 
-    function goToCatalogPage(value) {
+    function goToCatalogPage(value, shouldScroll = false) {
       let p = parseInt(value, 10);
       if (isNaN(p)) p = catalogState.page;
       p = Math.min(Math.max(1, p), catalogState.totalPages || 1);
-      if (p !== catalogState.page) fetchCatalog(p);
-      else document.getElementById('catalog-page-input').value = p;
+      const in1 = document.getElementById('catalog-page-input');
+      const in2 = document.getElementById('catalog-page-input-2');
+      if (in1) in1.value = p;
+      if (in2) in2.value = p;
+      if (p !== catalogState.page) fetchCatalog(p, shouldScroll);
     }
 
     function readCatalogFilters() {
-      const v = id => document.getElementById(id).value.trim();
+      const v = id => {
+        const el = document.getElementById(id);
+        return el ? el.value.trim() : '';
+      };
       catalogState.filters = {
         type: v('filter-type'),
+        series_status: v('filter-series-status'),
         publisher: v('filter-publisher'),
         year_from: v('filter-year-from'),
         year_to: v('filter-year-to'),
         cover: v('filter-cover'),
+        first_volume: v('filter-first-volume'),
+        collection_status: v('filter-collection-status'),
         sort: v('filter-sort')
       };
+      renderActiveFilterTags();
     }
+
+    function renderActiveFilterTags() {
+      const bar = document.getElementById('catalog-active-filters');
+      const container = document.getElementById('catalog-active-filter-tags');
+      if (!bar || !container) return;
+
+      const f = catalogState.filters || {};
+      const tags = [];
+
+      if (f.type) tags.push({ label: `Type: ${f.type}`, reset: () => { document.getElementById('filter-type').value = ''; } });
+      if (f.series_status) tags.push({ label: `Statut: ${f.series_status}`, reset: () => { document.getElementById('filter-series-status').value = ''; } });
+      if (f.publisher) tags.push({ label: `Éditeur: ${f.publisher}`, reset: () => { document.getElementById('filter-publisher').value = ''; } });
+      if (f.year_from) tags.push({ label: `Dès ${f.year_from}`, reset: () => { document.getElementById('filter-year-from').value = ''; } });
+      if (f.year_to) tags.push({ label: `Jusqu'à ${f.year_to}`, reset: () => { document.getElementById('filter-year-to').value = ''; } });
+      if (f.cover === '1') tags.push({ label: 'Avec couverture', reset: () => { document.getElementById('filter-cover').value = ''; } });
+      if (f.cover === '0') tags.push({ label: 'Sans couverture', reset: () => { document.getElementById('filter-cover').value = ''; } });
+      if (f.first_volume === '1') tags.push({ label: 'Tomes 1 uniquement', reset: () => { document.getElementById('filter-first-volume').value = ''; } });
+      if (f.collection_status === 'missing') tags.push({ label: 'Non possédés', reset: () => { document.getElementById('filter-collection-status').value = ''; } });
+      if (f.collection_status === 'owned') tags.push({ label: 'Déjà possédés', reset: () => { document.getElementById('filter-collection-status').value = ''; } });
+
+      if (tags.length === 0) {
+        bar.style.display = 'none';
+        container.innerHTML = '';
+      } else {
+        bar.style.display = 'flex';
+        container.innerHTML = tags.map((t, idx) => `
+          <span style="background: var(--pico-card-background-color); border: 1px solid var(--pico-muted-border-color); border-radius: 12px; padding: 0.15rem 0.55rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+            ${escapeHtml(t.label)}
+            <a href="#" onclick="event.preventDefault(); window._removeCatalogTag(${idx})" style="color: var(--pico-muted-color); text-decoration: none; font-weight: bold; cursor: pointer;">✕</a>
+          </span>
+        `).join('');
+        window._activeTagResetters = tags.map(t => t.reset);
+      }
+    }
+
+    window._removeCatalogTag = function(idx) {
+      if (window._activeTagResetters && window._activeTagResetters[idx]) {
+        window._activeTagResetters[idx]();
+        applyCatalogFilters();
+      }
+    };
 
     function applyCatalogFilters() {
       readCatalogFilters();
@@ -1184,10 +1282,12 @@
     }
 
     function resetCatalogFilters() {
-      ['filter-type', 'filter-publisher', 'filter-year-from', 'filter-year-to', 'filter-cover'].forEach(id => {
-        document.getElementById(id).value = '';
+      ['filter-type', 'filter-series-status', 'filter-publisher', 'filter-year-from', 'filter-year-to', 'filter-cover', 'filter-first-volume', 'filter-collection-status'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
       });
-      document.getElementById('filter-sort').value = 'series';
+      const sortEl = document.getElementById('filter-sort');
+      if (sortEl) sortEl.value = 'series';
       applyCatalogFilters();
     }
 
@@ -1198,6 +1298,7 @@
         const data = await res.json();
         const fill = (id, list) => {
           const sel = document.getElementById(id);
+          if (!sel) return;
           (list || []).forEach(val => {
             const o = document.createElement('option');
             o.value = val;
@@ -1207,21 +1308,22 @@
         };
         fill('filter-type', data.types);
         fill('filter-publisher', data.publishers);
+        fill('filter-series-status', data.statuses);
       } catch (e) {
         console.warn('Facettes indisponibles :', e.message);
       }
     }
     loadCatalogFacets();
 
-    function prevCatalogPage() {
+    function prevCatalogPage(shouldScroll = false) {
       if (catalogState.page > 1) {
-        fetchCatalog(catalogState.page - 1);
+        fetchCatalog(catalogState.page - 1, shouldScroll);
       }
     }
 
-    function nextCatalogPage() {
+    function nextCatalogPage(shouldScroll = false) {
       if (catalogState.page < catalogState.totalPages) {
-        fetchCatalog(catalogState.page + 1);
+        fetchCatalog(catalogState.page + 1, shouldScroll);
       }
     }
 
@@ -1237,15 +1339,23 @@
       fetchCatalog(1);
     }
 
-    async function fetchCatalog(page = 1) {
+    async function fetchCatalog(page = 1, shouldScroll = false) {
       catalogState.loading = true;
       catalogState.page = page;
       renderCatalog();
 
+      if (shouldScroll) {
+        const target = document.getElementById('catalog-section');
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
       try {
         const qParam = catalogState.query ? `&q=${encodeURIComponent(catalogState.query)}` : '';
-        const fParam = Object.entries(catalogState.filters || {})
-          .filter(([, val]) => val !== '')
+        const f = catalogState.filters || {};
+        const fParam = Object.entries(f)
+          .filter(([k, val]) => val !== '' && k !== 'collection_status')
           .map(([k, val]) => `&${k}=${encodeURIComponent(val)}`)
           .join('');
         const res = await fetch(`/api/catalog?page=${catalogState.page}&limit=${catalogState.limit}${qParam}${fParam}`);
@@ -1318,12 +1428,20 @@
     function renderCatalog() {
       const grid = document.getElementById('catalog-grid');
       const totalInfo = document.getElementById('catalog-total-info');
-      const pageInd1 = document.getElementById('catalog-page-indicator');
-      const pageInd2 = document.getElementById('catalog-page-indicator-2');
       const prev1 = document.getElementById('catalog-prev-btn');
       const prev2 = document.getElementById('catalog-prev-btn-2');
       const next1 = document.getElementById('catalog-next-btn');
       const next2 = document.getElementById('catalog-next-btn-2');
+      const first1 = document.getElementById('catalog-first-btn');
+      const first2 = document.getElementById('catalog-first-btn-2');
+      const last1 = document.getElementById('catalog-last-btn');
+      const last2 = document.getElementById('catalog-last-btn-2');
+      const pageInput1 = document.getElementById('catalog-page-input');
+      const pageInput2 = document.getElementById('catalog-page-input-2');
+      const pageTotal1 = document.getElementById('catalog-page-total');
+      const pageTotal2 = document.getElementById('catalog-page-total-2');
+      const limitSel1 = document.getElementById('catalog-limit-select');
+      const limitSel2 = document.getElementById('catalog-limit-select-2');
 
       if (catalogState.loading) {
         totalInfo.textContent = "Chargement des albums depuis Cloudflare D1...";
@@ -1332,34 +1450,44 @@
       }
 
       totalInfo.textContent = `${catalogState.total} album(s) trouvé(s) — Page ${catalogState.page} sur ${catalogState.totalPages}`;
-      const pageInput = document.getElementById('catalog-page-input');
-      const pageTotal = document.getElementById('catalog-page-total');
-      const first1 = document.getElementById('catalog-first-btn');
-      const last1 = document.getElementById('catalog-last-btn');
-      if (pageInput) { pageInput.value = catalogState.page; pageInput.max = catalogState.totalPages; }
-      if (pageTotal) pageTotal.textContent = catalogState.totalPages;
-      const pageText = `Page ${catalogState.page} / ${catalogState.totalPages}`;
-      if (pageInd2) pageInd2.textContent = pageText;
+      
+      // Synchronisation des valeurs de page
+      if (pageInput1) { pageInput1.value = catalogState.page; pageInput1.max = catalogState.totalPages; }
+      if (pageInput2) { pageInput2.value = catalogState.page; pageInput2.max = catalogState.totalPages; }
+      if (pageTotal1) pageTotal1.textContent = catalogState.totalPages;
+      if (pageTotal2) pageTotal2.textContent = catalogState.totalPages;
+      if (limitSel1) limitSel1.value = catalogState.limit;
+      if (limitSel2) limitSel2.value = catalogState.limit;
 
       const disablePrev = catalogState.page <= 1;
       const disableNext = catalogState.page >= catalogState.totalPages;
       if (first1) first1.disabled = disablePrev;
-      if (last1) last1.disabled = disableNext;
+      if (first2) first2.disabled = disablePrev;
       if (prev1) prev1.disabled = disablePrev;
       if (prev2) prev2.disabled = disablePrev;
       if (next1) next1.disabled = disableNext;
       if (next2) next2.disabled = disableNext;
+      if (last1) last1.disabled = disableNext;
+      if (last2) last2.disabled = disableNext;
 
-      if (catalogState.albums.length === 0) {
+      let displayAlbums = [...catalogState.albums];
+      const collFilter = (catalogState.filters && catalogState.filters.collection_status) || '';
+      if (collFilter === 'missing') {
+        displayAlbums = displayAlbums.filter(a => !isAlbumInCollection(a));
+      } else if (collFilter === 'owned') {
+        displayAlbums = displayAlbums.filter(a => isAlbumInCollection(a));
+      }
+
+      if (displayAlbums.length === 0) {
         grid.innerHTML = `
           <div style="grid-column: 1 / -1; text-align: center; padding: 2.5rem 1rem; border: 1px dashed var(--pico-muted-border-color); border-radius: 8px;">
-            <p>Aucun album trouvé pour "<strong>${escapeHtml(catalogState.query)}</strong>".</p>
+            <p>Aucun album trouvé pour les critères sélectionnés.</p>
           </div>
         `;
         return;
       }
 
-      grid.innerHTML = catalogState.albums.map(alb => {
+      grid.innerHTML = displayAlbums.map(alb => {
         const inCollection = isAlbumInCollection(alb);
         const coverSrc = alb.cover_image_url || (alb.isbn ? `https://covers.openlibrary.org/b/isbn/${alb.isbn}-M.jpg` : '');
 

@@ -136,10 +136,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const publishers = await env.DB.prepare(
         "SELECT publisher AS v, COUNT(*) AS n FROM albums WHERE deleted_at IS NULL AND publisher IS NOT NULL AND publisher <> '' GROUP BY publisher ORDER BY n DESC LIMIT 100"
       ).all();
+      const statuses = await env.DB.prepare(
+        "SELECT DISTINCT status AS v FROM series WHERE status IS NOT NULL AND status <> '' ORDER BY status"
+      ).all();
       return new Response(
         JSON.stringify({
           types: (types.results || []).map((r: any) => r.v),
           publishers: (publishers.results || []).map((r: any) => r.v).sort((a: string, b: string) => a.localeCompare(b, 'fr')),
+          statuses: (statuses.results || []).map((r: any) => r.v),
         }),
         { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' } }
       );
@@ -190,6 +194,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       whereClauses.push('s.type = ?');
       params.push(type);
     }
+    const seriesStatus = url.searchParams.get('series_status')?.trim() || '';
+    if (seriesStatus) {
+      whereClauses.push('s.status = ?');
+      params.push(seriesStatus);
+    }
     const publisher = url.searchParams.get('publisher')?.trim() || '';
     if (publisher) {
       whereClauses.push('a.publisher = ?');
@@ -211,6 +220,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     } else if (cover === '0') {
       whereClauses.push("(a.cover_image_url IS NULL OR a.cover_image_url = '')");
     }
+    const firstVolume = url.searchParams.get('first_volume');
+    if (firstVolume === '1') {
+      whereClauses.push('(a.volume_number = 1 OR a.volume_number IS NULL)');
+    }
 
     if (whereClauses.length > 0) {
       const extraWhere = ' AND ' + whereClauses.join(' AND ');
@@ -221,9 +234,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // Tri (liste blanche : pas d'injection SQL)
     const sortMap: Record<string, string> = {
       series: 's.title ASC, a.volume_number ASC',
+      series_desc: 's.title DESC, a.volume_number ASC',
       title: 'a.title ASC',
+      title_desc: 'a.title DESC',
       year_desc: 'a.published_year DESC, s.title ASC, a.volume_number ASC',
       year_asc: 'a.published_year ASC, s.title ASC, a.volume_number ASC',
+      volume_asc: 'a.volume_number ASC, s.title ASC',
+      volume_desc: 'a.volume_number DESC, s.title ASC',
     };
     const orderBy = sortMap[url.searchParams.get('sort') || ''] || sortMap.series;
     dataSql += ` ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
