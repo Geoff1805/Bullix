@@ -108,7 +108,7 @@ jobs:
       # Application du schéma global Cloudflare D1 si la base est vierge
       - name: Initialiser le Schéma D1 (schema.sql)
         if: ${{ steps.check_credentials.outputs.has_token == 'true' && (inputs.apply_to_d1 != false) }}
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -117,7 +117,7 @@ jobs:
       # Injection du batch SQL dans Cloudflare D1
       - name: Injecter le Seed de Données dans Cloudflare D1 (bullix-db)
         if: ${{ steps.check_credentials.outputs.has_token == 'true' && (inputs.apply_to_d1 != false) }}
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
