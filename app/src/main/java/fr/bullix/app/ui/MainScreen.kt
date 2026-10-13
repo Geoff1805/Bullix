@@ -98,7 +98,12 @@ fun MainScreen(repository: CollectionRepository) {
                     0 -> CollectionScreen(
                         items = collectionItems,
                         onItemClick = {},
-                        onSeriesClick = { seriesId -> selectedSeriesId = seriesId }
+                        onSeriesClick = { seriesId -> selectedSeriesId = seriesId },
+                        onSeedCollection = {
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                repository.seedInitialDataIfEmpty()
+                            }
+                        }
                     )
                     1 -> ScannerScreen(
                         repository = repository,

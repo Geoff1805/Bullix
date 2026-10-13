@@ -41,6 +41,9 @@ class BullixApp : Application() {
         )
 
         setupPeriodicSync()
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            repository.seedInitialDataIfEmpty()
+        }
         triggerImmediateSync()
     }
 

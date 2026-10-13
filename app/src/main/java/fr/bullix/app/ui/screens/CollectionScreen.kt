@@ -56,7 +56,8 @@ import fr.bullix.app.domain.CollectionSearchFilter
 fun CollectionScreen(
     items: List<CollectionItemDetail>,
     onItemClick: (CollectionItemDetail) -> Unit,
-    onSeriesClick: (String) -> Unit
+    onSeriesClick: (String) -> Unit,
+    onSeedCollection: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf("Tous") }
@@ -122,19 +123,28 @@ fun CollectionScreen(
                     .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(16.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Book,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Aucun album trouvé",
+                        text = if (items.isEmpty()) "Votre BDthèque est vide pour le moment" else "Aucun album ne correspond à ce filtre",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (items.isEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        androidx.compose.material3.Button(onClick = onSeedCollection) {
+                            Text("📚 Charger les albums de départ")
+                        }
+                    }
                 }
             }
         } else {

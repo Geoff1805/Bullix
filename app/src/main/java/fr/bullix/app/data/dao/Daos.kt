@@ -108,12 +108,12 @@ interface UserCollectionDao {
     @Query("""
         SELECT 
             c.id AS collectionId,
-            a.id AS albumId,
-            s.id AS seriesId,
-            s.title AS seriesTitle,
-            s.type AS seriesType,
-            a.volume_number AS volumeNumber,
-            a.title AS albumTitle,
+            c.album_id AS albumId,
+            COALESCE(s.id, a.series_id, 'ser_misc') AS seriesId,
+            COALESCE(s.title, 'Sans série') AS seriesTitle,
+            COALESCE(s.type, 'Franco-belge') AS seriesType,
+            COALESCE(a.volume_number, 1.0) AS volumeNumber,
+            COALESCE(a.title, 'Album ' || c.album_id) AS albumTitle,
             a.isbn AS isbn,
             a.authors AS authors,
             a.publisher AS publisher,
@@ -126,23 +126,23 @@ interface UserCollectionDao {
             c.is_favorite AS isFavorite,
             c.created_at AS addedAt
         FROM user_collection c
-        INNER JOIN albums a ON c.album_id = a.id
-        INNER JOIN series s ON a.series_id = s.id
+        LEFT JOIN albums a ON c.album_id = a.id
+        LEFT JOIN series s ON a.series_id = s.id
         LEFT JOIN locations l ON c.location_id = l.id
         WHERE c.deleted_at IS NULL
-        ORDER BY s.title ASC, a.volume_number ASC
+        ORDER BY COALESCE(s.title, 'Sans série') ASC, COALESCE(a.volume_number, 1.0) ASC
     """)
     fun getAllCollectionItems(): Flow<List<CollectionItemDetail>>
 
     @Query("""
         SELECT 
             c.id AS collectionId,
-            a.id AS albumId,
-            s.id AS seriesId,
-            s.title AS seriesTitle,
-            s.type AS seriesType,
-            a.volume_number AS volumeNumber,
-            a.title AS albumTitle,
+            c.album_id AS albumId,
+            COALESCE(s.id, a.series_id, 'ser_misc') AS seriesId,
+            COALESCE(s.title, 'Sans série') AS seriesTitle,
+            COALESCE(s.type, 'Franco-belge') AS seriesType,
+            COALESCE(a.volume_number, 1.0) AS volumeNumber,
+            COALESCE(a.title, 'Album ' || c.album_id) AS albumTitle,
             a.isbn AS isbn,
             a.authors AS authors,
             a.publisher AS publisher,
@@ -155,11 +155,11 @@ interface UserCollectionDao {
             c.is_favorite AS isFavorite,
             c.created_at AS addedAt
         FROM user_collection c
-        INNER JOIN albums a ON c.album_id = a.id
-        INNER JOIN series s ON a.series_id = s.id
+        LEFT JOIN albums a ON c.album_id = a.id
+        LEFT JOIN series s ON a.series_id = s.id
         LEFT JOIN locations l ON c.location_id = l.id
         WHERE c.location_id = :locationId AND c.deleted_at IS NULL
-        ORDER BY a.volume_number ASC
+        ORDER BY COALESCE(a.volume_number, 1.0) ASC
     """)
     fun getCollectionItemsByLocation(locationId: String): Flow<List<CollectionItemDetail>>
 
@@ -170,6 +170,9 @@ interface UserCollectionDao {
         WHERE a.series_id = :seriesId AND c.deleted_at IS NULL
     """)
     suspend fun getOwnedVolumeNumbers(seriesId: String): List<Double>
+
+    @Query("SELECT COUNT(*) FROM user_collection WHERE deleted_at IS NULL")
+    suspend fun getCollectionCount(): Int
 
     @Query("DELETE FROM user_collection WHERE id = :id")
     suspend fun deleteItem(id: String)

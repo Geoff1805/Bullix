@@ -158,15 +158,92 @@
       display: flex;
       flex-direction: column;
       gap: 0.4rem;
+      width: 100%;
     }
     .action-row {
       display: flex;
       gap: 0.4rem;
+      width: 100%;
     }
     .action-row button, .action-row select {
-      padding: 0.35rem 0.5rem;
-      font-size: 0.8rem;
+      flex: 1 1 auto;
+      min-width: 0;
+      padding: 0.4rem 0.5rem;
+      font-size: 0.82rem;
       margin: 0;
+      min-height: 42px;
+    }
+    .album-actions > button {
+      width: 100%;
+      margin: 0;
+      padding: 0.45rem 0.6rem;
+      font-size: 0.85rem;
+      min-height: 42px;
+    }
+
+    /* Barre de recherche adaptative à la largeur d'écran */
+    .search-toolbar-wrapper {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.8rem;
+      width: 100%;
+      flex-wrap: wrap;
+    }
+    .search-toolbar-wrapper input[type="search"] {
+      flex: 1 1 220px;
+      margin: 0;
+      min-height: 44px;
+      font-size: 0.95rem;
+    }
+    .search-toolbar-wrapper .search-btn-group {
+      display: flex;
+      gap: 0.4rem;
+      flex: 0 1 auto;
+    }
+    .search-toolbar-wrapper .search-btn-group button {
+      margin: 0;
+      padding: 0.4rem 0.85rem;
+      font-size: 0.85rem;
+      min-height: 44px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Barre de filtres de la collection (Multi-critères) */
+    .collection-filter-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+      background: var(--pico-card-background-color);
+      padding: 0.8rem;
+      border-radius: 8px;
+      border: 1px solid var(--pico-muted-border-color);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .collection-filter-bar .filter-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .collection-filter-bar .filter-item label {
+      font-size: 0.72rem;
+      font-weight: bold;
+      color: var(--pico-muted-color);
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .collection-filter-bar .filter-item select {
+      margin: 0;
+      padding: 0.35rem 0.5rem;
+      font-size: 0.85rem;
+      min-height: 42px;
+      border-radius: 6px;
+      width: 100%;
     }
 
     /* Grille de stats */
@@ -317,6 +394,34 @@
       .pagination-controls {
         justify-content: center;
         flex-wrap: wrap;
+      }
+      .search-toolbar-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .search-toolbar-wrapper input[type="search"] {
+        width: 100%;
+        flex: 1 1 100%;
+      }
+      .search-toolbar-wrapper .search-btn-group {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+      }
+      .search-toolbar-wrapper .search-btn-group button {
+        width: 100%;
+      }
+      .collection-filter-bar {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        padding: 0.6rem;
+      }
+      .action-row {
+        flex-direction: column;
+      }
+      .action-row button, .action-row select {
+        width: 100%;
       }
     }
 
@@ -474,24 +579,68 @@
         <button class="filter-pill" onclick="setCollectionFilter('LOAN', this)">🤝 Prêtés (<span id="count-loan">0</span>)</button>
       </div>
 
-      <!-- Recherche instantanée MiniSearch et contrôles GSM -->
-      <fieldset role="group">
+      <!-- Barre de recherche adaptative à tous les écrans (mobile, tablette, PC) -->
+      <div class="search-toolbar-wrapper">
         <input 
           type="search" 
           id="collection-search-input" 
-          placeholder="🔎 Rechercher dans ma BDthèque (titre, série, auteur, ISBN...)" 
+          placeholder="🔎 Rechercher dans ma BDthèque (titre, série, auteur, éditeur, casier, ISBN...)" 
           oninput="filterCollection()" 
         />
-        <button type="button" class="outline" onclick="startGsmScanner()" title="Scanner un code-barres avec la caméra du smartphone">
-          📷 Scan GSM
-        </button>
-        <button type="button" class="secondary" onclick="clearCollectionSearch()">Effacer</button>
-      </fieldset>
+        <div class="search-btn-group">
+          <button type="button" class="outline" onclick="startGsmScanner()" title="Scanner un code-barres avec la caméra du smartphone">
+            📷 Scan GSM
+          </button>
+          <button type="button" class="secondary" onclick="clearCollectionSearch()">
+            Effacer
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtres multi-critères (Genre, Emplacement, Éditeur, Tri) -->
+      <div class="collection-filter-bar">
+        <div class="filter-item">
+          <label for="filter-genre">Genre / Type</label>
+          <select id="filter-genre" onchange="filterCollection()">
+            <option value="">Tous les genres</option>
+            <option value="Franco-belge">Franco-belge</option>
+            <option value="Manga">Manga</option>
+            <option value="Comics">Comics</option>
+            <option value="Roman graphique">Roman graphique</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label for="filter-location">Emplacement / Casier</label>
+          <select id="filter-location" onchange="filterCollection()">
+            <option value="">Tous les emplacements</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label for="filter-publisher">Éditeur</label>
+          <select id="filter-publisher" onchange="filterCollection()">
+            <option value="">Tous les éditeurs</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label for="filter-sort">Trier par</label>
+          <select id="filter-sort" onchange="filterCollection()">
+            <option value="series_asc">Série (A → Z)</option>
+            <option value="series_desc">Série (Z → A)</option>
+            <option value="title_asc">Titre (A → Z)</option>
+            <option value="volume_asc">Tome (1 → N)</option>
+            <option value="year_desc">Année (Récent → Ancien)</option>
+            <option value="year_asc">Année (Ancien → Récent)</option>
+          </select>
+        </div>
+      </div>
 
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem; font-size: 0.85rem; color: var(--pico-muted-color);">
         <span id="collection-stats">Chargement...</span>
-        <div style="display: flex; gap: 0.4rem;">
-          <button id="view-mode-btn" class="outline secondary" style="padding: 0.25rem 0.55rem; font-size: 0.78rem; margin: 0;" onclick="toggleViewMode()">
+        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+          <button class="outline secondary" style="padding: 0.25rem 0.6rem; font-size: 0.78rem; margin: 0; min-height: 36px;" onclick="resetAllCollectionFilters()">
+            ✕ Réinit. filtres
+          </button>
+          <button id="view-mode-btn" class="outline secondary" style="padding: 0.25rem 0.6rem; font-size: 0.78rem; margin: 0; min-height: 36px;" onclick="toggleViewMode()">
             📱 Vue Liste
           </button>
         </div>
@@ -838,6 +987,8 @@
       } catch (e) {
         console.warn("Échec écriture localStorage :", e);
       }
+      populateCollectionFilterOptions();
+      updateFilterCounts();
     }
 
     let myCollection = loadCollectionFromStorage();
@@ -1127,11 +1278,62 @@
       }).join('');
     }
 
+    function populateCollectionFilterOptions() {
+      const locSelect = document.getElementById('filter-location');
+      const pubSelect = document.getElementById('filter-publisher');
+      if (!locSelect || !pubSelect) return;
+
+      const currentLoc = locSelect.value;
+      const currentPub = pubSelect.value;
+
+      // Emplacements uniques
+      const locations = [...new Set(myCollection.map(i => i.locationName).filter(Boolean))].sort();
+      locSelect.innerHTML = '<option value="">Tous les emplacements</option>' + 
+        locations.map(loc => {
+          const count = myCollection.filter(i => i.locationName === loc).length;
+          const selected = loc === currentLoc ? 'selected' : '';
+          return `<option value="${escapeHtml(loc)}" ${selected}>${escapeHtml(loc)} (${count})</option>`;
+        }).join('');
+
+      // Éditeurs uniques
+      const publishers = [...new Set(myCollection.map(i => i.publisher).filter(Boolean))].sort();
+      pubSelect.innerHTML = '<option value="">Tous les éditeurs</option>' + 
+        publishers.map(pub => {
+          const count = myCollection.filter(i => i.publisher === pub).length;
+          const selected = pub === currentPub ? 'selected' : '';
+          return `<option value="${escapeHtml(pub)}" ${selected}>${escapeHtml(pub)} (${count})</option>`;
+        }).join('');
+    }
+
+    function resetAllCollectionFilters() {
+      currentCollectionFilter = 'ALL';
+      document.querySelectorAll('.filter-pills .filter-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.startsWith('Tous'));
+      });
+      const qInput = document.getElementById('collection-search-input');
+      if (qInput) qInput.value = '';
+      const gSel = document.getElementById('filter-genre');
+      if (gSel) gSel.value = '';
+      const lSel = document.getElementById('filter-location');
+      if (lSel) lSel.value = '';
+      const pSel = document.getElementById('filter-publisher');
+      if (pSel) pSel.value = '';
+      const sSel = document.getElementById('filter-sort');
+      if (sSel) sSel.value = 'series_asc';
+      filterCollection();
+      showToast("Filtres réinitialisés", "info");
+    }
+
     function filterCollection() {
-      const query = document.getElementById('collection-search-input').value.trim();
+      const query = document.getElementById('collection-search-input')?.value.trim() || '';
+      const selectedGenre = document.getElementById('filter-genre')?.value || '';
+      const selectedLocation = document.getElementById('filter-location')?.value || '';
+      const selectedPublisher = document.getElementById('filter-publisher')?.value || '';
+      const selectedSort = document.getElementById('filter-sort')?.value || 'series_asc';
+
       let filtered = [...myCollection];
 
-      // Application du filtre pile de lecture
+      // 1. Filtre par pile de lecture
       if (currentCollectionFilter === 'LU') {
         filtered = filtered.filter(i => i.readingStatus === 'LU');
       } else if (currentCollectionFilter === 'EN_COURS') {
@@ -1142,34 +1344,66 @@
         filtered = filtered.filter(i => !!i.loanTo);
       }
 
-      if (!query) {
-        renderCollection(filtered);
-        return;
+      // 2. Filtre par Genre / Type
+      if (selectedGenre) {
+        filtered = filtered.filter(i => (i.seriesType || '').toLowerCase() === selectedGenre.toLowerCase());
       }
 
-      if (miniSearchInstance) {
-        const searchResults = miniSearchInstance.search(query, {
-          fuzzy: 0.2,
-          prefix: true,
-          boost: {
-            seriesTitle: 3,
-            albumTitle: 3,
-            authors: 2,
-            isbn: 2,
-            publisher: 1.5,
-            locationName: 1.2
-          }
-        });
-        const matchedIds = new Set(searchResults.map(r => r.id));
-        const matchedItems = filtered.filter(item => matchedIds.has(item.id));
-        renderCollection(matchedItems, query);
-      } else {
-        const q = query.toLowerCase();
-        const matchedItems = filtered.filter(item =>
-          Object.values(item).some(val => String(val).toLowerCase().includes(q))
-        );
-        renderCollection(matchedItems, query);
+      // 3. Filtre par Emplacement
+      if (selectedLocation) {
+        filtered = filtered.filter(i => i.locationName === selectedLocation);
       }
+
+      // 4. Filtre par Éditeur
+      if (selectedPublisher) {
+        filtered = filtered.filter(i => i.publisher === selectedPublisher);
+      }
+
+      // 5. Recherche plein-texte / MiniSearch
+      if (query) {
+        if (miniSearchInstance) {
+          const searchResults = miniSearchInstance.search(query, {
+            fuzzy: 0.2,
+            prefix: true,
+            boost: {
+              seriesTitle: 3,
+              albumTitle: 3,
+              authors: 2,
+              isbn: 2,
+              publisher: 1.5,
+              locationName: 1.2
+            }
+          });
+          const matchedIds = new Set(searchResults.map(r => r.id));
+          filtered = filtered.filter(item => matchedIds.has(item.id));
+        } else {
+          const q = query.toLowerCase();
+          filtered = filtered.filter(item =>
+            Object.values(item).some(val => String(val).toLowerCase().includes(q))
+          );
+        }
+      }
+
+      // 6. Tri
+      filtered.sort((a, b) => {
+        switch (selectedSort) {
+          case 'series_desc':
+            return (b.seriesTitle || '').localeCompare(a.seriesTitle || '') || (a.volumeNumber - b.volumeNumber);
+          case 'title_asc':
+            return (a.albumTitle || '').localeCompare(b.albumTitle || '');
+          case 'volume_asc':
+            return (a.volumeNumber || 0) - (b.volumeNumber || 0);
+          case 'year_desc':
+            return (b.publishedYear || 0) - (a.publishedYear || 0);
+          case 'year_asc':
+            return (a.publishedYear || 0) - (b.publishedYear || 0);
+          case 'series_asc':
+          default:
+            return (a.seriesTitle || '').localeCompare(b.seriesTitle || '') || (a.volumeNumber - b.volumeNumber);
+        }
+      });
+
+      renderCollection(filtered, query);
     }
 
     function clearCollectionSearch() {
@@ -1909,6 +2143,7 @@
     // Démarrage de l'application
     document.addEventListener('DOMContentLoaded', () => {
       initSearchEngine();
+      populateCollectionFilterOptions();
       applyViewMode();
       renderCollection(myCollection);
       updateFilterCounts();

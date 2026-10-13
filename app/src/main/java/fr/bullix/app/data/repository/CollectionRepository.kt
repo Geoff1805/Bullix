@@ -232,4 +232,40 @@ class CollectionRepository(
         condition: String = "Bon",
         locationId: String? = null
     ): String = addAlbumToCollection(albumId, locationId, condition)
+
+    /**
+     * Amorçage automatique de la collection de base si l'application démarre hors-ligne avec une base vide.
+     */
+    suspend fun seedInitialDataIfEmpty() {
+        if (userCollectionDao.getCollectionCount() > 0) return
+        val now = System.currentTimeMillis()
+
+        // Séries
+        val sAsterix = SeriesEntity("ser_asterix", "Astérix", "Franco-belge", "En cours")
+        val sBlacksad = SeriesEntity("ser_blacksad", "Blacksad", "Franco-belge", "En cours")
+        val sTintin = SeriesEntity("ser_tintin", "Tintin", "Franco-belge", "Terminée")
+        val sOnePiece = SeriesEntity("ser_one_piece", "One Piece", "Manga", "En cours")
+        seriesDao.insertSeriesBatch(listOf(sAsterix, sBlacksad, sTintin, sOnePiece))
+
+        // Albums
+        val a1 = AlbumEntity("bd-1", "ser_asterix", 1.0, "Astérix le Gaulois", "9782012101333", null, "René Goscinny, Albert Uderzo", "Dargaud", 1961, "https://covers.openlibrary.org/b/isbn/9782012101333-M.jpg")
+        val a2 = AlbumEntity("bd-2", "ser_blacksad", 1.0, "Quelque part entre les ombres", "9782205049657", null, "Juan Díaz Canales, Juanjo Guarnido", "Dargaud", 2000, "https://covers.openlibrary.org/b/isbn/9782205049657-M.jpg")
+        val a3 = AlbumEntity("bd-3", "ser_tintin", 5.0, "Le Lotus bleu", "9782203001046", null, "Hergé", "Casterman", 1946, "https://covers.openlibrary.org/b/isbn/9782203001046-M.jpg")
+        val a4 = AlbumEntity("bd-4", "ser_one_piece", 1.0, "Romance Dawn", "9782723488525", null, "Eiichiro Oda", "Glénat", 1997, "https://covers.openlibrary.org/b/isbn/9782723488525-M.jpg")
+        albumDao.insertAlbumBatch(listOf(a1, a2, a3, a4))
+
+        // Emplacements par défaut
+        val locSalon = LocationEntity("loc_salon_b1_c01", "default_user", "Salon › Bibliothèque", "QR-SALON-B1-C01", "#4CAF50")
+        val locBureau = LocationEntity("loc_bureau_pile_a_ranger", "default_user", "Bureau › Tour Manga", "QR-BUREAU-ATTENTE", "#FF9800")
+        locationDao.insertLocation(locSalon)
+        locationDao.insertLocation(locBureau)
+
+        // Ajout dans la collection utilisateur
+        val uc1 = UserCollectionEntity("col_1", "default_user", "bd-1", "loc_salon_b1_c01", "Très bon", "Édition Originale", 12.0, "{\"readingStatus\":\"LU\"}", true, now, now)
+        val uc2 = UserCollectionEntity("col_2", "default_user", "bd-2", "loc_salon_b1_c01", "Neuf", "Tirage courant", 15.0, "{\"readingStatus\":\"EN_COURS\"}", false, now, now)
+        val uc3 = UserCollectionEntity("col_3", "default_user", "bd-3", null, "Bon", "Fac-similé", 10.0, "{\"readingStatus\":\"LU\",\"loanTo\":\"Alexandre\"}", false, now, now)
+        val uc4 = UserCollectionEntity("col_4", "default_user", "bd-4", "loc_bureau_pile_a_ranger", "Très bon", "Tirage standard", 7.0, "{\"readingStatus\":\"A_LIRE\"}", false, now, now)
+
+        listOf(uc1, uc2, uc3, uc4).forEach { userCollectionDao.insertItem(it) }
+    }
 }
