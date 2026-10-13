@@ -8,7 +8,7 @@ plugins {
 
 android {
   namespace = "fr.bullix.app"
-  compileSdk = 36
+  compileSdk = 37
 
   val versionPropsFile = file("${rootDir}/version.properties")
   val versionProps = Properties()
@@ -34,7 +34,7 @@ android {
   defaultConfig {
     applicationId = "fr.bullix.app"
     minSdk = 24
-    targetSdk = 36
+    targetSdk = 37
     versionCode = appVersionCode
     versionName = appVersionName
 
