@@ -36,6 +36,9 @@ on:
     # Exécution automatique mensuelle : le 1er du mois à 03h00 UTC
     - cron: '0 3 1 * *'
 
+permissions:
+  contents: write
+
 jobs:
   scrape_and_seed:
     name: Scrape & Seed Cloudflare D1 + R2
