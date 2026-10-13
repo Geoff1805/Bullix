@@ -3,29 +3,17 @@ name: Android CI & Build APK
 on:
   push:
     branches: [ "main" ]
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - 'docs/**'
   pull_request:
     branches: [ "main" ]
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - 'docs/**'
   workflow_dispatch:
 
 permissions:
   contents: write
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   test-and-build:
     name: Test & Build APK
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -48,7 +36,7 @@ jobs:
         run: ./gradlew test --continue
 
       - name: Upload Test Results
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: unit-test-results
@@ -62,9 +50,38 @@ jobs:
           echo "Building APK with versionCode=${VERSION_CODE}, versionName=${VERSION_NAME}"
           ./gradlew assembleDebug -PappVersionCode="${VERSION_CODE}" -PappVersionName="${VERSION_NAME}"
 
-      - name: Upload Debug APK
+      - name: Prepare Normalized APK
+        run: |
+          mkdir -p build-artifacts
+          DEBUG_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+          cp "$DEBUG_APK" build-artifacts/Bullix.apk
+          ls -lh build-artifacts/
+
+      - name: Upload Normalized APK Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Bullix.apk
+          path: build-artifacts/Bullix.apk
+          retention-days: 30
+
+      - name: Upload Debug APK (Compatibility)
         uses: actions/upload-artifact@v7
         with:
           name: bullix-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-          retention-days: 7
+          path: build-artifacts/Bullix.apk
+          retention-days: 30
+
+      - name: Publish Direct Unzipped APK to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION_NAME="1.0.${{ github.run_number }}"
+          TAG="v${VERSION_NAME}"
+          echo "Publishing direct Bullix.apk for tag $TAG..."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" build-artifacts/Bullix.apk --clobber
+          else
+            gh release create "$TAG" build-artifacts/Bullix.apk \
+              --title "Bullix v${VERSION_NAME}" \
+              --notes "Version ${VERSION_NAME} compilée automatiquement par GitHub Actions. Fichier APK direct sans archive zip."
+          fi
