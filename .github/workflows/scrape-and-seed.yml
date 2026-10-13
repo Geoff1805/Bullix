@@ -39,7 +39,7 @@ on:
 jobs:
   scrape_and_seed:
     name: Scrape & Seed Cloudflare D1 + R2
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
