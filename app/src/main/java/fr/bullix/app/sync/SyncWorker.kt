@@ -170,7 +170,25 @@ class SyncWorker(
                                         }
 
                                         val condition = payloadMap["condition"] as? String ?: "Bon"
-                                        val locationId = payloadMap["location_id"] as? String
+                                        val rawLocationId = payloadMap["location_id"] as? String
+                                        val validLocationId = if (rawLocationId != null) {
+                                            if (locationDao.getLocationById(rawLocationId) == null) {
+                                                val locName = payloadMap["location_name"] as? String ?: "Salon"
+                                                locationDao.insertLocation(
+                                                    LocationEntity(
+                                                        id = rawLocationId,
+                                                        userId = "default_user",
+                                                        name = locName,
+                                                        qrCodeRef = null,
+                                                        colorTag = "#4CAF50",
+                                                        updatedAt = updatedAt
+                                                    )
+                                                )
+                                            }
+                                            rawLocationId
+                                        } else {
+                                            null
+                                        }
                                         val notes = payloadMap["notes"] as? String
                                         val isFavorite = (payloadMap["is_favorite"] as? Boolean) == true
 
@@ -179,7 +197,7 @@ class SyncWorker(
                                                 id = id,
                                                 userId = "default_user",
                                                 albumId = albumId,
-                                                locationId = locationId,
+                                                locationId = validLocationId,
                                                 condition = condition,
                                                 editionInfo = payloadMap["edition_info"] as? String,
                                                 purchasePrice = (payloadMap["purchase_price"] as? Number)?.toDouble(),
@@ -209,6 +227,94 @@ class SyncWorker(
                                     )
                                 }
                             }
+                        }
+                    }
+
+                    // Fallback direct vers /api/collection si le journal records était vide ou base locale vide
+                    if (records.isNullOrEmpty() && (lastSyncTime == 0L || userCollectionDao.getCollectionCount() == 0)) {
+                        Log.i("SyncWorker", "Vérification directe auprès de /api/collection...")
+                        try {
+                            val directReq = Request.Builder()
+                                .url("$apiUrl/api/collection?user_id=default_user")
+                                .get()
+                                .build()
+                            val directResp = client.newCall(directReq).execute()
+                            if (directResp.isSuccessful) {
+                                val directBody = directResp.body?.string()
+                                if (!directBody.isNullOrEmpty()) {
+                                    val directMap = moshi.adapter(Map::class.java).fromJson(directBody)
+                                    val collItems = directMap?.get("items") as? List<Map<String, Any?>>
+                                    if (!collItems.isNullOrEmpty()) {
+                                        Log.i("SyncWorker", "📥 Récupération directe de ${collItems.size} albums...")
+                                        for (item in collItems) {
+                                            val albumId = item["album_id"] as? String ?: continue
+                                            val colId = item["collection_id"] as? String ?: "col_$albumId"
+                                            val seriesId = (item["series_id"] as? String)?.ifEmpty { null } ?: "ser_$albumId"
+                                            val seriesTitle = (item["series_title"] as? String)?.ifEmpty { null } ?: "Série"
+                                            val seriesType = (item["series_type"] as? String) ?: "Franco-belge"
+
+                                            if (seriesDao.getSeriesById(seriesId) == null) {
+                                                seriesDao.insertSeries(
+                                                    fr.bullix.app.data.entity.SeriesEntity(
+                                                        id = seriesId,
+                                                        title = seriesTitle,
+                                                        type = seriesType,
+                                                        status = "En cours"
+                                                    )
+                                                )
+                                            }
+
+                                            if (albumDao.getAlbumById(albumId) == null) {
+                                                albumDao.insertAlbum(
+                                                    fr.bullix.app.data.entity.AlbumEntity(
+                                                        id = albumId,
+                                                        seriesId = seriesId,
+                                                        volumeNumber = (item["volume_number"] as? Number)?.toDouble() ?: 1.0,
+                                                        title = item["album_title"] as? String ?: "Album $albumId",
+                                                        isbn = item["isbn"] as? String,
+                                                        authors = item["authors"] as? String,
+                                                        publisher = item["publisher"] as? String,
+                                                        publishedYear = (item["published_year"] as? Number)?.toInt(),
+                                                        coverImageUrl = item["cover_image_url"] as? String
+                                                    )
+                                                )
+                                            }
+
+                                            val locId = item["location_id"] as? String
+                                            if (locId != null && locationDao.getLocationById(locId) == null) {
+                                                locationDao.insertLocation(
+                                                    LocationEntity(
+                                                        id = locId,
+                                                        userId = "default_user",
+                                                        name = item["location_name"] as? String ?: "Salon",
+                                                        qrCodeRef = null,
+                                                        colorTag = "#4CAF50",
+                                                        updatedAt = System.currentTimeMillis()
+                                                    )
+                                                )
+                                            }
+
+                                            userCollectionDao.insertItem(
+                                                UserCollectionEntity(
+                                                    id = colId,
+                                                    userId = "default_user",
+                                                    albumId = albumId,
+                                                    locationId = locId,
+                                                    condition = item["condition"] as? String ?: "Bon",
+                                                    editionInfo = item["edition_info"] as? String,
+                                                    purchasePrice = (item["purchase_price"] as? Number)?.toDouble(),
+                                                    notes = item["notes"] as? String,
+                                                    isFavorite = (item["is_favorite"] as? Number)?.toInt() == 1 || item["is_favorite"] == true,
+                                                    createdAt = System.currentTimeMillis(),
+                                                    updatedAt = System.currentTimeMillis()
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (directErr: Exception) {
+                            Log.w("SyncWorker", "Avertissement fallback /api/collection : ${directErr.message}")
                         }
                     }
 

@@ -87,6 +87,9 @@ interface LocationDao {
     @Query("SELECT * FROM locations WHERE deleted_at IS NULL ORDER BY name ASC")
     fun getAllLocations(): Flow<List<LocationEntity>>
 
+    @Query("SELECT * FROM locations WHERE id = :id AND deleted_at IS NULL LIMIT 1")
+    suspend fun getLocationById(id: String): LocationEntity?
+
     @Query("SELECT * FROM locations WHERE qr_code_ref = :qrCode AND deleted_at IS NULL LIMIT 1")
     suspend fun getLocationByQr(qrCode: String): LocationEntity?
 

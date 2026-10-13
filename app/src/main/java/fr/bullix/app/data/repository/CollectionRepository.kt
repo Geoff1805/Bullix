@@ -314,6 +314,19 @@ class CollectionRepository(
             updatedAt = now
         )
 
-        listOf(uc1, uc2, uc3, uc4).forEach { userCollectionDao.insertItem(it) }
+        listOf(uc1, uc2, uc3, uc4).forEach { 
+            userCollectionDao.insertItem(it)
+            syncRecordDao.insertRecord(
+                SyncRecordEntity(
+                    id = it.id,
+                    userId = "default_user",
+                    entityType = "user_collection",
+                    payload = """{"id":"${it.id}","album_id":"${it.albumId}","location_id":${it.locationId?.let { loc -> "\"$loc\"" } ?: "null"},"condition":"${it.condition}"}""",
+                    syncStatus = "PENDING_INSERT",
+                    createdAt = now,
+                    updatedAt = now
+                )
+            )
+        }
     }
 }

@@ -57,7 +57,8 @@ fun CollectionScreen(
     items: List<CollectionItemDetail>,
     onItemClick: (CollectionItemDetail) -> Unit,
     onSeriesClick: (String) -> Unit,
-    onSeedCollection: () -> Unit = {}
+    onSeedCollection: () -> Unit = {},
+    onSyncClick: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf("Tous") }
@@ -143,6 +144,10 @@ fun CollectionScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         androidx.compose.material3.Button(onClick = onSeedCollection) {
                             Text("📚 Charger les albums de départ")
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        androidx.compose.material3.OutlinedButton(onClick = onSyncClick) {
+                            Text("🔄 Synchroniser avec le Cloud D1")
                         }
                     }
                 }

@@ -106,6 +106,11 @@ fun MainScreen(repository: CollectionRepository) {
                             CoroutineScope(Dispatchers.IO).launch {
                                 repository.seedInitialDataIfEmpty()
                             }
+                            Toast.makeText(context, "Albums de départ initialisés !", Toast.LENGTH_SHORT).show()
+                        },
+                        onSyncClick = {
+                            (context.applicationContext as? BullixApp)?.triggerImmediateSync()
+                            Toast.makeText(context, "Synchronisation avec le Cloud D1 lancée...", Toast.LENGTH_SHORT).show()
                         }
                     )
                     1 -> ScannerScreen(
