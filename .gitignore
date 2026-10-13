@@ -30,3 +30,11 @@ node_modules/
 .wrangler/
 .wrangler-dist/
 dist/
+
+# Ajouté automatiquement par Sentinel (Sécurité & Secrets)
+.env.local
+*.pem
+*.key
+*.p12
+__pycache__/
+*.pyc
