@@ -129,6 +129,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
+    if (url.searchParams.get('facets') === '1') {
+      const types = await env.DB.prepare(
+        "SELECT DISTINCT type AS v FROM series WHERE type IS NOT NULL AND type <> '' ORDER BY type"
+      ).all();
+      const publishers = await env.DB.prepare(
+        "SELECT publisher AS v, COUNT(*) AS n FROM albums WHERE deleted_at IS NULL AND publisher IS NOT NULL AND publisher <> '' GROUP BY publisher ORDER BY n DESC LIMIT 100"
+      ).all();
+      return new Response(
+        JSON.stringify({
+          types: (types.results || []).map((r: any) => r.v),
+          publishers: (publishers.results || []).map((r: any) => r.v).sort((a: string, b: string) => a.localeCompare(b, 'fr')),
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' } }
+      );
+    }
+
     let countSql = `
       SELECT COUNT(*) AS total
       FROM albums a
@@ -168,13 +184,49 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       params.push(...searchParams);
     }
 
+    // Filtres avancés
+    const type = url.searchParams.get('type')?.trim() || '';
+    if (type) {
+      whereClauses.push('s.type = ?');
+      params.push(type);
+    }
+    const publisher = url.searchParams.get('publisher')?.trim() || '';
+    if (publisher) {
+      whereClauses.push('a.publisher = ?');
+      params.push(publisher);
+    }
+    const yearFrom = parseInt(url.searchParams.get('year_from') || '', 10);
+    if (!isNaN(yearFrom)) {
+      whereClauses.push('a.published_year >= ?');
+      params.push(yearFrom);
+    }
+    const yearTo = parseInt(url.searchParams.get('year_to') || '', 10);
+    if (!isNaN(yearTo)) {
+      whereClauses.push('a.published_year <= ?');
+      params.push(yearTo);
+    }
+    const cover = url.searchParams.get('cover');
+    if (cover === '1') {
+      whereClauses.push("a.cover_image_url IS NOT NULL AND a.cover_image_url <> ''");
+    } else if (cover === '0') {
+      whereClauses.push("(a.cover_image_url IS NULL OR a.cover_image_url = '')");
+    }
+
     if (whereClauses.length > 0) {
       const extraWhere = ' AND ' + whereClauses.join(' AND ');
       countSql += extraWhere;
       dataSql += extraWhere;
     }
 
-    dataSql += ' ORDER BY s.title ASC, a.volume_number ASC LIMIT ? OFFSET ?';
+    // Tri (liste blanche : pas d'injection SQL)
+    const sortMap: Record<string, string> = {
+      series: 's.title ASC, a.volume_number ASC',
+      title: 'a.title ASC',
+      year_desc: 'a.published_year DESC, s.title ASC, a.volume_number ASC',
+      year_asc: 'a.published_year ASC, s.title ASC, a.volume_number ASC',
+    };
+    const orderBy = sortMap[url.searchParams.get('sort') || ''] || sortMap.series;
+    dataSql += ` ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
 
     const countResult = await env.DB.prepare(countSql).bind(...params).first<{ total: number }>();
     const total = countResult?.total || 0;
