@@ -39,6 +39,7 @@ import fr.bullix.app.ui.screens.SeriesDetailScreen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(repository: CollectionRepository) {
+    val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
     var selectedSeriesId by remember { mutableStateOf<String?>(null) }
 
@@ -54,7 +55,6 @@ fun MainScreen(repository: CollectionRepository) {
     } else {
         Scaffold(
             topBar = {
-                val context = LocalContext.current
                 TopAppBar(
                     title = {
                         Text(
