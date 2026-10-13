@@ -34,7 +34,7 @@ android {
   defaultConfig {
     applicationId = "fr.bullix.app"
     minSdk = 24
-    targetSdk = 36
+    targetSdk = 37
     versionCode = appVersionCode
     versionName = appVersionName
 
