@@ -39,7 +39,7 @@ import fr.bullix.app.ui.screens.SeriesDetailScreen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(repository: CollectionRepository) {
-    val context = LocalContext.current
+    val androidContext = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
     var selectedSeriesId by remember { mutableStateOf<String?>(null) }
 
@@ -64,8 +64,8 @@ fun MainScreen(repository: CollectionRepository) {
                     },
                     actions = {
                         IconButton(onClick = {
-                            (context.applicationContext as? BullixApp)?.triggerImmediateSync()
-                            Toast.makeText(context, "Synchronisation avec le Cloud D1 lancée...", Toast.LENGTH_SHORT).show()
+                            (androidContext.applicationContext as? BullixApp)?.triggerImmediateSync()
+                            Toast.makeText(androidContext, "Synchronisation avec le Cloud D1 lancée...", Toast.LENGTH_SHORT).show()
                         }) {
                             Icon(Icons.Default.Sync, contentDescription = "Synchroniser avec le cloud")
                         }
@@ -106,11 +106,11 @@ fun MainScreen(repository: CollectionRepository) {
                             CoroutineScope(Dispatchers.IO).launch {
                                 repository.seedInitialDataIfEmpty()
                             }
-                            Toast.makeText(context, "Albums de départ initialisés !", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(androidContext, "Albums de départ initialisés !", Toast.LENGTH_SHORT).show()
                         },
                         onSyncClick = {
-                            (context.applicationContext as? BullixApp)?.triggerImmediateSync()
-                            Toast.makeText(context, "Synchronisation avec le Cloud D1 lancée...", Toast.LENGTH_SHORT).show()
+                            (androidContext.applicationContext as? BullixApp)?.triggerImmediateSync()
+                            Toast.makeText(androidContext, "Synchronisation avec le Cloud D1 lancée...", Toast.LENGTH_SHORT).show()
                         }
                     )
                     1 -> ScannerScreen(
