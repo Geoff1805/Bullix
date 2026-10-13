@@ -1,10 +1,7 @@
 name: Dependency Review & Security Scanning
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  # Green IT : plus de scan a chaque push/PR, seulement hebdomadaire + manuel
   schedule:
     # Scan hebdomadaire tous les lundis à 04:00 UTC
     - cron: '0 4 * * 1'
@@ -15,10 +12,14 @@ permissions:
   pull-requests: write
   security-events: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   dependency-review:
     name: Dependency Review (PRs)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'pull_request'
     continue-on-error: true
     steps:
@@ -42,7 +43,7 @@ jobs:
 
   security-audit:
     name: Security & Vulnerability Audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
