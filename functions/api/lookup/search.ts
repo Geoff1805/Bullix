@@ -5,6 +5,84 @@ interface Env {
   CACHE_KV: KVNamespace;
 }
 
+function getAccentVariants(word: string): string[] {
+  const w = word.toLowerCase();
+  const variants = new Set<string>();
+  variants.add(w);
+
+  const unaccented = w.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  variants.add(unaccented);
+
+  const commonMap: Record<string, string[]> = {
+    'asterix': ['astérix', 'asterix'],
+    'astérix': ['astérix', 'asterix'],
+    'epervier': ['épervier', 'epervier'],
+    'eleve': ['élève', 'eleve'],
+    'herge': ['hergé', 'herge'],
+    'mystere': ['mystère', 'mystere'],
+    'chateau': ['château', 'chateau'],
+    'foret': ['forêt', 'foret'],
+    'tresor': ['trésor', 'tresor'],
+    'ocean': ['océan', 'ocean'],
+    'planete': ['planète', 'planete'],
+  };
+
+  if (commonMap[unaccented]) {
+    commonMap[unaccented].forEach((v) => variants.add(v));
+  } else {
+    if (unaccented.includes('e')) {
+      variants.add(unaccented.replace(/e/g, 'é'));
+      variants.add(unaccented.replace(/e/g, 'è'));
+    }
+    if (unaccented.includes('a')) {
+      variants.add(unaccented.replace(/a/g, 'â'));
+    }
+  }
+
+  return Array.from(variants);
+}
+
+function buildSearchCondition(query: string): { sql: string; params: (string | number)[] } {
+  const cleanIsbn = query.replace(/[-\s]/g, '');
+  if (/^[0-9Xx]{9,17}$/.test(cleanIsbn)) {
+    return {
+      sql: '(a.isbn LIKE ? OR a.upc LIKE ?)',
+      params: [`%${cleanIsbn}%`, `%${cleanIsbn}%`],
+    };
+  }
+
+  const rawTokens = query.trim().split(/\s+/).filter((t) => t.length > 0);
+  const clauses: string[] = [];
+  const params: (string | number)[] = [];
+
+  for (const token of rawTokens) {
+    const volMatch = token.match(/^(?:tome|vol|volume|t\.?)?(\d+(?:\.\d+)?)$/i);
+    if (volMatch && (rawTokens.length > 1 || /^(?:tome|vol|volume|t\.)/i.test(token))) {
+      const volNum = parseFloat(volMatch[1]);
+      clauses.push('(a.volume_number = ? OR CAST(a.volume_number AS TEXT) LIKE ?)');
+      params.push(volNum, `%${volMatch[1]}%`);
+      continue;
+    }
+
+    const variants = getAccentVariants(token);
+    const subClauses: string[] = [];
+    for (const v of variants) {
+      subClauses.push(
+        '(s.title LIKE ? OR a.title LIKE ? OR a.authors LIKE ? OR a.publisher LIKE ? OR a.isbn LIKE ? OR s.type LIKE ?)'
+      );
+      const pat = `%${v}%`;
+      params.push(pat, pat, pat, pat, pat, pat);
+    }
+
+    clauses.push(`(${subClauses.join(' OR ')})`);
+  }
+
+  return {
+    sql: clauses.length > 0 ? clauses.join(' AND ') : '1=1',
+    params,
+  };
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     const { request, env } = context;
@@ -20,12 +98,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     let localResults: any[] = [];
 
-    // 1. Recherche dans Cloudflare D1
+    // 1. Recherche tolérante aux accents & multi-mots dans Cloudflare D1
     if (env.DB) {
       try {
-        const cleanQuery = query.replace(/[-\s]/g, '');
-        const likePattern = `%${query}%`;
-        const cleanLikePattern = `%${cleanQuery}%`;
+        const { sql: searchSql, params: searchParams } = buildSearchCondition(query);
 
         const { results } = await env.DB.prepare(`
           SELECT 
@@ -43,31 +119,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             s.status AS series_status
           FROM albums a
           LEFT JOIN series s ON a.series_id = s.id
-          WHERE a.deleted_at IS NULL AND (
-            a.title LIKE ? OR
-            a.isbn LIKE ? OR
-            a.isbn LIKE ? OR
-            a.authors LIKE ? OR
-            a.publisher LIKE ? OR
-            s.title LIKE ? OR
-            s.type LIKE ? OR
-            CAST(a.published_year AS TEXT) LIKE ? OR
-            CAST(a.volume_number AS TEXT) LIKE ?
-          )
+          WHERE a.deleted_at IS NULL AND (${searchSql})
           ORDER BY s.title ASC, a.volume_number ASC
           LIMIT 50
         `)
-          .bind(
-            likePattern,
-            cleanLikePattern,
-            likePattern,
-            likePattern,
-            likePattern,
-            likePattern,
-            likePattern,
-            likePattern,
-            likePattern
-          )
+          .bind(...searchParams)
           .all();
 
         localResults = results || [];
