@@ -416,6 +416,38 @@
         </fieldset>
       </form>
 
+      <!-- Filtres du catalogue -->
+      <div class="catalog-filters" style="display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: end; margin-bottom: 1rem;">
+        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 140px;">Type
+          <select id="filter-type" onchange="applyCatalogFilters()" style="margin: 0;"><option value="">Tous</option></select>
+        </label>
+        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 180px;">Éditeur
+          <select id="filter-publisher" onchange="applyCatalogFilters()" style="margin: 0;"><option value="">Tous</option></select>
+        </label>
+        <label style="margin: 0; font-size: 0.8rem; flex: 0 1 100px;">Année de
+          <input type="number" id="filter-year-from" min="1800" max="2100" placeholder="1950" onchange="applyCatalogFilters()" style="margin: 0;" />
+        </label>
+        <label style="margin: 0; font-size: 0.8rem; flex: 0 1 100px;">à
+          <input type="number" id="filter-year-to" min="1800" max="2100" placeholder="2026" onchange="applyCatalogFilters()" style="margin: 0;" />
+        </label>
+        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 140px;">Couverture
+          <select id="filter-cover" onchange="applyCatalogFilters()" style="margin: 0;">
+            <option value="">Toutes</option>
+            <option value="1">Avec couverture</option>
+            <option value="0">Sans couverture</option>
+          </select>
+        </label>
+        <label style="margin: 0; font-size: 0.8rem; flex: 1 1 160px;">Trier par
+          <select id="filter-sort" onchange="applyCatalogFilters()" style="margin: 0;">
+            <option value="series">Série / tome</option>
+            <option value="title">Titre de l'album</option>
+            <option value="year_desc">Plus récents</option>
+            <option value="year_asc">Plus anciens</option>
+          </select>
+        </label>
+        <button type="button" class="secondary outline" onclick="resetCatalogFilters()" style="margin: 0; width: auto;">Réinitialiser</button>
+      </div>
+
       <!-- Barre de pagination supérieure -->
       <div class="pagination-bar">
         <div style="font-size: 0.85rem; color: var(--pico-muted-color);">
@@ -428,13 +460,21 @@
               <option value="12">12</option>
               <option value="24" selected>24</option>
               <option value="48">48</option>
+              <option value="96">96</option>
             </select>
           </label>
+          <button class="outline" id="catalog-first-btn" onclick="fetchCatalog(1)" disabled title="Première page">⏮</button>
           <button class="outline" id="catalog-prev-btn" onclick="prevCatalogPage()" disabled>◀ Précédente</button>
-          <span id="catalog-page-indicator" style="font-size: 0.85rem; font-weight: bold; min-width: 80px; text-align: center;">Page 1</span>
+          <span style="font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; gap: 0.3rem;">
+            Page
+            <input type="number" id="catalog-page-input" min="1" value="1" onchange="goToCatalogPage(this.value)" onkeydown="if(event.key==='Enter'){goToCatalogPage(this.value)}" style="width: 5rem; margin: 0; padding: 0.2rem 0.4rem; font-size: 0.85rem; text-align: center;" />
+            / <span id="catalog-page-total">1</span>
+          </span>
           <button class="outline" id="catalog-next-btn" onclick="nextCatalogPage()" disabled>Suivante ▶</button>
+          <button class="outline" id="catalog-last-btn" onclick="fetchCatalog(catalogState.totalPages)" disabled title="Dernière page">⏭</button>
         </div>
       </div>
+
 
       <!-- Conteneur d'affichage du catalogue -->
       <div id="catalog-content">
@@ -1118,6 +1158,61 @@
       fetchCatalog(1);
     }
 
+    function goToCatalogPage(value) {
+      let p = parseInt(value, 10);
+      if (isNaN(p)) p = catalogState.page;
+      p = Math.min(Math.max(1, p), catalogState.totalPages || 1);
+      if (p !== catalogState.page) fetchCatalog(p);
+      else document.getElementById('catalog-page-input').value = p;
+    }
+
+    function readCatalogFilters() {
+      const v = id => document.getElementById(id).value.trim();
+      catalogState.filters = {
+        type: v('filter-type'),
+        publisher: v('filter-publisher'),
+        year_from: v('filter-year-from'),
+        year_to: v('filter-year-to'),
+        cover: v('filter-cover'),
+        sort: v('filter-sort')
+      };
+    }
+
+    function applyCatalogFilters() {
+      readCatalogFilters();
+      fetchCatalog(1);
+    }
+
+    function resetCatalogFilters() {
+      ['filter-type', 'filter-publisher', 'filter-year-from', 'filter-year-to', 'filter-cover'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('filter-sort').value = 'series';
+      applyCatalogFilters();
+    }
+
+    async function loadCatalogFacets() {
+      try {
+        const res = await fetch('/api/catalog?facets=1');
+        if (!res.ok) return;
+        const data = await res.json();
+        const fill = (id, list) => {
+          const sel = document.getElementById(id);
+          (list || []).forEach(val => {
+            const o = document.createElement('option');
+            o.value = val;
+            o.textContent = val;
+            sel.appendChild(o);
+          });
+        };
+        fill('filter-type', data.types);
+        fill('filter-publisher', data.publishers);
+      } catch (e) {
+        console.warn('Facettes indisponibles :', e.message);
+      }
+    }
+    loadCatalogFacets();
+
     function prevCatalogPage() {
       if (catalogState.page > 1) {
         fetchCatalog(catalogState.page - 1);
@@ -1149,7 +1244,11 @@
 
       try {
         const qParam = catalogState.query ? `&q=${encodeURIComponent(catalogState.query)}` : '';
-        const res = await fetch(`/api/catalog?page=${catalogState.page}&limit=${catalogState.limit}${qParam}`);
+        const fParam = Object.entries(catalogState.filters || {})
+          .filter(([, val]) => val !== '')
+          .map(([k, val]) => `&${k}=${encodeURIComponent(val)}`)
+          .join('');
+        const res = await fetch(`/api/catalog?page=${catalogState.page}&limit=${catalogState.limit}${qParam}${fParam}`);
         
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -1233,12 +1332,19 @@
       }
 
       totalInfo.textContent = `${catalogState.total} album(s) trouvé(s) — Page ${catalogState.page} sur ${catalogState.totalPages}`;
+      const pageInput = document.getElementById('catalog-page-input');
+      const pageTotal = document.getElementById('catalog-page-total');
+      const first1 = document.getElementById('catalog-first-btn');
+      const last1 = document.getElementById('catalog-last-btn');
+      if (pageInput) { pageInput.value = catalogState.page; pageInput.max = catalogState.totalPages; }
+      if (pageTotal) pageTotal.textContent = catalogState.totalPages;
       const pageText = `Page ${catalogState.page} / ${catalogState.totalPages}`;
-      if (pageInd1) pageInd1.textContent = pageText;
       if (pageInd2) pageInd2.textContent = pageText;
 
       const disablePrev = catalogState.page <= 1;
       const disableNext = catalogState.page >= catalogState.totalPages;
+      if (first1) first1.disabled = disablePrev;
+      if (last1) last1.disabled = disableNext;
       if (prev1) prev1.disabled = disablePrev;
       if (prev2) prev2.disabled = disablePrev;
       if (next1) next1.disabled = disableNext;
