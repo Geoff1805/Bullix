@@ -23,8 +23,23 @@
   5. **Mise à jour automatique Gradle (GA stable)** : Toujours intégrer le workflow de mise à jour automatique du Gradle Wrapper (`.github/workflows/update-gradle-wrapper.yml`) ciblant strictement le canal `stable` (GA uniquement, exclusion des Nightly builds et Release Candidates), avec validation d'intégrité SHA-256 et alignement dynamique de la CI (`./gradlew` sans version Gradle codée en dur).
   6. **Résolution Immédiate des Alertes Dependabot (Zéro Tolérance Vulnérabilités)** : Surveiller en continu et corriger sans délai toutes les alertes de sécurité Dependabot dès détection (éradication des dépendances transitives obsolètes/superflues, élimination des plugins orphelins, et mise à jour immédiate vers les versions patchées).
 
+
 ## Conventions du Projet
 - **Langue** : Toujours répondre en français de manière concise avec des liens cliquables `file:///` vers les fichiers et symboles modifiés.
 - **Architecture** : Offline-First stricte, Optimistic UI, Kotlin Multiplatform (KMP), Cloudflare Serverless (D1, KV, R2).
 - **Souveraineté & Green IT** : Maintenir l'architecture 100 % locale sans dépendance cloud propriétaire obligatoire ; fonctionnement autonome en l'absence de réseau.
 - **Réutilisation de l'existant (Ne pas réinventer la roue)** : Systématiquement privilégier les bibliothèques éprouvées, composants standards et fonctionnalités natives de l'écosystème (ex: SQLite FTS5, MiniSearch/Fuse.js, standards de validation/formatage) plutôt que de réécrire des solutions maison ad-hoc ou fragiles dès lors qu'un outil standard adapté existe.
+
+## Normalisation des Noms d'APK et Zéro ZIP Superflu pour TOUTES les Applications (/learn)
+- **Règle absolue (/learn)** : Pour **TOUTES les applications existantes et TOUTES les nouvelles applications futures sans exception** (Android natif, Kotlin Multiplatform, Flutter, React Native, etc., incluant `InstallAPK`, `Bullix`, `Needix`, `AntigravityController`, etc.) :
+  1. **Nommage normalisé strict `<AppName>.apk` dès la création** :
+     - Dès l'initialisation, le premier commit ou la mise en place de la CI/CD de **toute nouvelle application**, l'APK produit et distribué doit porter exclusivement et obligatoirement le nom exact de l'application : **`<AppName>.apk`** (ex: `InstallAPK.apk`, `Bullix.apk`, `Needix.apk`, `AntigravityController.apk`).
+     - Proscription formelle et absolue des noms par défaut des frameworks ou suffixes hétérogènes (`app-release.apk`, `app-debug.apk`, `-release-apk`, `-debug-apk`, `Needix-Debug-APK`, etc.) dans les artefacts et les releases.
+  2. **Zéro ZIP superflu (Binaire APK brut directement installable)** :
+     - Les APKs doivent être mis à disposition directement sous leur format `.apk` natif sans aucune compression ou encapsulation zip superflue.
+     - Dans les GitHub Releases, le fichier `.apk` doit être immédiatement cliquable et téléchargeable depuis un smartphone pour une installation en un clic via `InstallAPK` ou le navigateur.
+     - Dans les workflows CI/CD (`.github/workflows/*.yml`), toujours copier ou renommer l'APK compilé vers `build-artifacts/<AppName>.apk` avant les étapes d'upload d'artefact et de publication de release.
+  3. **Détection automatique et intégration dans InstallAPK** :
+     - Toute nouvelle application Android/mobile doit être compatible et immédiatement reconnue par `InstallAPK`.
+     - `InstallAPK` trie les artefacts GitHub prioritairement par **date de création (`created_at`) décroissante** afin de toujours garantir l'installation du build le plus récent.
+     - Les téléchargements depuis les dépôts privés s'effectuent via l'endpoint de l'API GitHub (`/releases/assets/{id}`) avec l'en-tête `Accept: application/octet-stream` pour éviter toute erreur 404.
