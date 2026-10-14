@@ -32,9 +32,9 @@ You must defend and indemnify the licensor against all claims and damages that r
 Commercial use, sublicensing, SaaS hosting, or distribution for monetary compensation requires an explicit commercial license agreement from the copyright holder.
 
 For commercial inquiries, licensing requests, permissions or feedback:
+- **Email**: geoff1805@duck.com
 - **GitHub**: [@Geoff1805](https://github.com/Geoff1805)
 - **Repository Issues**: Open an Issue or Discussion on this repository
-- **Contact**: Contact via GitHub or configured repository channels
 
 ## Disclaimer of Warranties
 As far as the law allows, the software is provided by the licensor "as is", without any warranty or condition, and the licensor will not be liable to anyone for any damages related to this software or this license, under any kind of legal claim.
