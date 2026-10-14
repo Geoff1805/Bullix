@@ -24,7 +24,7 @@ export interface ExternalAlbumResult {
   source: 'bnf' | 'inventaire' | 'google_books' | 'openlibrary' | 'mangadex';
 }
 
-const USER_AGENT = 'Bullix-App/1.0 (https://bullix.pages.dev; contact: geoff@bullix.app)';
+const USER_AGENT = 'Bullix-App/1.0 (https://bullix.app; contact: contact@bullix.app)';
 
 /**
  * 1. BnF (Bibliothèque nationale de France) — API SRU Catalogue général
@@ -418,3 +418,4 @@ function cleanSlug(text: string): string {
     .replace(/^_+|_+$/g, '')
     .slice(0, 30);
 }
+
