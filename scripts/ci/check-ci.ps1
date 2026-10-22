@@ -41,7 +41,7 @@ if (-not $token) {
     $token = $env:GH_TOKEN
 }
 if (-not $token) {
-    $mcpConfigFile = "$(Join-Path $env:USERPROFILE ".gemini\config\mcp_config.json")"
+    $mcpConfigFile = "C:\Users\geoff\.gemini\config\mcp_config.json"
     if (Test-Path $mcpConfigFile) {
         try {
             $mcpConfig = Get-Content $mcpConfigFile -Raw | ConvertFrom-Json
@@ -175,4 +175,3 @@ do {
         Start-Sleep -Seconds $IntervalSeconds
     }
 } while ($Watch)
-

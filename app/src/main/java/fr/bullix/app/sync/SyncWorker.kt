@@ -43,7 +43,7 @@ class SyncWorker(
 
     override suspend fun doWork(): Result {
         return try {
-            val apiUrl = BuildConfig.BULLIX_API_URL.ifEmpty { "https://api.bullix.app" }
+            val apiUrl = BuildConfig.BULLIX_API_URL.ifEmpty { "https://bullix-db.alsteens.net" }
 
             // =========================================================================
             // ÉTAPE 1 : PUSH (Envoi des modifications locales vers Cloudflare D1)
@@ -330,4 +330,3 @@ class SyncWorker(
         }
     }
 }
-

@@ -8,7 +8,7 @@ plugins {
 
 android {
   namespace = "fr.bullix.app"
-  compileSdk = 37
+  compileSdk = 36
 
   val versionPropsFile = file("${rootDir}/version.properties")
   val versionProps = Properties()
@@ -29,12 +29,12 @@ android {
   if (envFile.exists()) {
     envProps.load(envFile.inputStream())
   }
-  val apiUrl = envProps.getProperty("BULLIX_API_URL", "https://api.bullix.app")
+  val apiUrl = envProps.getProperty("BULLIX_API_URL", "https://bullix-db.alsteens.net")
 
   defaultConfig {
     applicationId = "fr.bullix.app"
     minSdk = 24
-    targetSdk = 37
+    targetSdk = 36
     versionCode = appVersionCode
     versionName = appVersionName
 
@@ -52,6 +52,16 @@ android {
         keyPassword = "android"
       }
     }
+    create("release") {
+      val customKeystore = file("${rootDir}/app/debug.keystore")
+      val fallbackKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
+      storeFile = if (customKeystore.exists()) customKeystore else fallbackKeystore
+      storePassword = "android"
+      keyAlias = "androiddebugkey"
+      keyPassword = "android"
+      enableV1Signing = true
+      enableV2Signing = true
+    }
   }
 
   buildTypes {
@@ -59,7 +69,9 @@ android {
       signingConfig = signingConfigs.getByName("debug")
     }
     release {
-      isMinifyEnabled = false
+      isMinifyEnabled = true
+      isShrinkResources = true
+      signingConfig = signingConfigs.getByName("release")
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
   }
@@ -125,4 +137,3 @@ dependencies {
   androidTestImplementation(libs.androidx.espresso.core)
   debugImplementation(libs.androidx.compose.ui.tooling)
 }
-

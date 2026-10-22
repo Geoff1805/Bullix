@@ -1,8 +1,9 @@
 Cloudflare Configuration (Bullix)
+- Account ID: 6e80c2cd8408d58fd6a02209f90af7ac
 - D1 Database: bullix-db
   ID: 7bfc27fe-0d17-437f-96a1-d99a66bb5466
   Location: Western Europe (weur)
 - KV Namespace: CACHE_KV
   ID: 86cd4a3466f24257a2ed4d993abd85c9
 - R2 Bucket: bullix-images
-  Jurisdiction: EU
+  Status: Created & Active

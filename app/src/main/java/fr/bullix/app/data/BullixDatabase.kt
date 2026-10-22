@@ -31,7 +31,6 @@ import kotlinx.coroutines.launch
     exportSchema = false
 )
 abstract class BullixDatabase : RoomDatabase() {
-
     abstract fun seriesDao(): SeriesDao
     abstract fun albumDao(): AlbumDao
     abstract fun locationDao(): LocationDao
@@ -47,10 +46,10 @@ abstract class BullixDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     BullixDatabase::class.java,
-                    "bullix_database.db"
+                    "bullix_local.db"
                 )
-                    .fallbackToDestructiveMigration()
                     .addCallback(DatabaseCallback())
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

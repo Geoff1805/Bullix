@@ -1,7 +1,6 @@
 interface Env {
   DB: D1Database;
   IMAGES_BUCKET: R2Bucket;
-  BULLIX_SYNC_SECRET?: string;
 }
 
 /**
@@ -14,13 +13,6 @@ interface Env {
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     const { env, request } = context;
-    const syncKey = request.headers.get('x-sync-key') || request.headers.get('Authorization')?.replace(/^Bearer\s+/, '');
-    if (env.BULLIX_SYNC_SECRET && syncKey !== env.BULLIX_SYNC_SECRET) {
-      return new Response(JSON.stringify({ error: 'Accès non autorisé' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
     const url = new URL(request.url);
     const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10)));
 
@@ -108,4 +100,3 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     });
   }
 };
-

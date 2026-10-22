@@ -1,38 +1,25 @@
-# Gradle / Kotlin / Android
-.gradle/
-build/
-*/build/
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+app/build/
 *.apk
 *.aab
 
-# Local configuration & credentials
-local.properties
-.env
-*.keystore
-!app/debug.keystore
-*.jks
-infos manuelles.txt
-scraped_data.json
-generated_seed.sql
-incremental_seed.sql
-.tmp_r2_upload/
-.scraping_state.json
-
-# IDEs
-.idea/
-*.iml
-.vscode/
-.DS_Store
-Thumbs.db
-
-# Cloudflare / Node
-node_modules/
-.wrangler/
-.wrangler-dist/
-dist/
-
-# Ajouté automatiquement par Sentinel (Sécurité & Secrets)
+# Sécurité & Secrets
 .env.local
+*.jks
 *.pem
 *.key
 *.p12
@@ -40,3 +27,7 @@ __pycache__/
 *.pyc
 
 build-artifacts/
+node_modules/
+.wrangler/
+.wrangler-dist/
+dist/
