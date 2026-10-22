@@ -3,9 +3,23 @@ name: Android CI & Build APK
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/**'
+      - 'docs/**'
+      - 'LICENSE'
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/**'
+      - 'docs/**'
+      - 'LICENSE'
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -37,11 +51,12 @@ jobs:
 
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: unit-test-results
           path: app/build/reports/tests/
           if-no-files-found: ignore
+          retention-days: 3
 
       - name: Build Debug APK
         run: |
@@ -58,18 +73,11 @@ jobs:
           ls -lh build-artifacts/
 
       - name: Upload Normalized APK Artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: Bullix.apk
           path: build-artifacts/Bullix.apk
-          retention-days: 30
-
-      - name: Upload Debug APK (Compatibility)
-        uses: actions/upload-artifact@v7
-        with:
-          name: bullix-debug-apk
-          path: build-artifacts/Bullix.apk
-          retention-days: 30
+          retention-days: 3
 
       - name: Publish Direct Unzipped APK to GitHub Release
         env:
