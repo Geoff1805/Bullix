@@ -13,13 +13,10 @@ on:
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   deploy:
     name: Deploy Web & Edge Functions
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7

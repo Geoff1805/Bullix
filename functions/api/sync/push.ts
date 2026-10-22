@@ -1,7 +1,6 @@
 interface Env {
   DB: D1Database;
   CACHE_KV?: KVNamespace;
-  BULLIX_SYNC_SECRET?: string;
 }
 
 interface SyncRecord {
@@ -21,13 +20,6 @@ interface PushPayload {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const { request, env } = context;
-    const syncKey = request.headers.get('x-sync-key') || request.headers.get('Authorization')?.replace(/^Bearer\s+/, '');
-    if (env.BULLIX_SYNC_SECRET && syncKey !== env.BULLIX_SYNC_SECRET) {
-      return new Response(JSON.stringify({ error: 'Accès non autorisé' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
     const body = (await request.json()) as PushPayload;
 
     if (!body || !body.records || !Array.isArray(body.records)) {
@@ -259,4 +251,3 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
   }
 };
-

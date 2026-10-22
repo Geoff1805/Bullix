@@ -16,3 +16,13 @@
 -keep class fr.bullix.app.domain.model.** { *; }
 -keep class fr.bullix.app.data.entity.** { *; }
 -keep class fr.bullix.app.data.dao.** { *; }
+
+# ProGuard / R8 Optimization Rules
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-dontwarn io.ktor.**
+-dontwarn kotlinx.coroutines.**
+-dontwarn com.google.android.gms.**
+-keep class com.google.android.gms.home.** { *; }
+-keep class com.google.android.gms.common.** { *; }

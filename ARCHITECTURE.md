@@ -280,15 +280,9 @@ Bullix/
 │   │   ├── sync/
 │   │   │   ├── push.ts             # Traitement batch & LWW D1
 │   │   │   └── pull.ts             # Récupération delta D1
-│   │   ├── series/
-│   │   │   └── cache.ts            # Téléchargement et cache d'une série complète
 │   │   └── lookup/
-│   │       ├── isbn.ts             # Résolution EAN (D1 prioritaire, cache KV, BnF)
+│   │       ├── isbn.ts             # Résolution EAN avec cache KV & BnF
 │   │       └── ocr.ts              # Recherche textuelle intelligente
-├── scripts/
-│   └── seeding/
-│       ├── import_seed.ts          # Script d'import et batching BDthèque/BDvore
-│       └── schema_seed.sql         # Jeu de données d'amorçage
 ├── wrangler.toml                   # Configuration Cloudflare (D1, KV, R2)
 └── schema.sql                      # Schéma SQL initial pour D1
 ```
