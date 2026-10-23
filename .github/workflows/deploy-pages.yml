@@ -1,16 +1,6 @@
 name: Deploy Cloudflare Pages
 
 on:
-  push:
-    branches: [ "main" ]
-    paths:
-      - 'web/**'
-      - 'functions/**'
-      - 'scripts/**'
-      - 'tsconfig.json'
-      - 'wrangler.toml'
-      - 'package.json'
-      - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
 jobs:
