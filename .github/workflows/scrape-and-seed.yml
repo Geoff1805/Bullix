@@ -39,10 +39,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup Node.js LTS
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: 22
 
@@ -94,7 +94,7 @@ jobs:
 
       # Sauvegarde temporaire exclusive des métadonnées texte (SQL & JSON), aucune image
       - name: Sauvegarder Temporairement les Métadonnées DB (GitHub Artifacts - 14j)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: bullix-scraped-database-run-${{ github.run_number }}
           path: |
