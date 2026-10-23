@@ -32,9 +32,6 @@ on:
         required: true
         default: true
         type: boolean
-  schedule:
-    # Exécution automatique mensuelle : le 1er du mois à 03h00 UTC
-    - cron: '0 3 1 * *'
 
 jobs:
   scrape_and_seed:

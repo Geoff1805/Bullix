@@ -1,9 +1,6 @@
 name: Update Gradle Wrapper (Stable)
 
 on:
-  schedule:
-    # Vérification hebdomadaire chaque lundi à 05:00 UTC
-    - cron: '0 5 * * 1'
   workflow_dispatch:
 
 permissions:
