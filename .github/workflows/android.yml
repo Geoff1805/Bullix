@@ -1,20 +1,6 @@
 name: Android CI & Build APK
 
 on:
-  push:
-    branches: [ "main" ]
-    paths-ignore:
-      - '**.md'
-      - '.github/workflows/**'
-      - 'docs/**'
-      - 'LICENSE'
-  pull_request:
-    branches: [ "main" ]
-    paths-ignore:
-      - '**.md'
-      - '.github/workflows/**'
-      - 'docs/**'
-      - 'LICENSE'
   workflow_dispatch:
 
 concurrency:
