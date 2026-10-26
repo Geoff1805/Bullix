@@ -100,4 +100,6 @@ Le workflow [`.github/workflows/scrape-and-seed.yml`](.github/workflows/scrape-a
 
 ## 📄 Licence
 
-Propriétaire / Usage Personnel — Geoff1805.
+MIT — voir le fichier [LICENSE](LICENSE).
+
+Copyright (c) 2026 Geoff1805
