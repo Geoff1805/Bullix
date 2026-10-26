@@ -21,6 +21,12 @@ app/build/
 .env
 .env.*
 .env.local
+infos manuelles.txt
+wrangler.toml
+!wrangler.example.toml
+scraped_data.json
+generated_seed.sql
+scraping_state.json
 *.jks
 *.keystore
 *.pem

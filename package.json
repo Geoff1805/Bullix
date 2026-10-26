@@ -8,24 +8,13 @@
   },
   "scripts": {
     "build": "echo 'Static web assets ready in web/'",
-    "d1:create": "wrangler d1 create bullix-db",
-    "d1:apply": "wrangler d1 execute bullix-db --file=./schema.sql",
-    "d1:seed": "wrangler d1 execute bullix-db --file=./scripts/seeding/schema_seed.sql",
-    "seed:generate": "tsx scripts/seeding/import_seed.ts",
-    "scrape": "tsx scripts/scraping/index.ts",
-    "scrape:quick": "tsx scripts/scraping/index.ts --max=2",
-    "scrape:full": "tsx scripts/scraping/index.ts --max=20",
-    "scrape:r2": "tsx scripts/scraping/upload_covers_to_r2.ts",
-    "scrape:local": "powershell -ExecutionPolicy Bypass -File scripts/scraping/scrape-from-pc.ps1",
     "pages:dev": "wrangler pages dev web",
     "pages:deploy": "wrangler pages deploy web",
-    "typecheck": "tsc --noEmit",
-    "typecheck:scripts": "tsc -p scripts/tsconfig.json --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261012.1",
     "@types/node": "^22.13.1",
-    "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "wrangler": "^4.0.0"
   }

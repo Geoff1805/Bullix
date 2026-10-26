@@ -3,16 +3,20 @@ compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "web"
 
+# Note : Les identifiants et configurations réelles de production sont sécurisés
+# dans le repository privé : https://github.com/Geoff1805/bullix-config
+# et injectés via le tableau de bord Cloudflare Pages (Settings > Functions > Bindings).
+
 # Cloudflare D1 Database binding (Europe de l'Ouest / weur)
 [[d1_databases]]
 binding = "DB"
 database_name = "bullix-db"
-database_id = "7bfc27fe-0d17-437f-96a1-d99a66bb5466"
+database_id = "your-d1-database-id"
 
 # Cloudflare KV for external API caching (BnF, Open Library)
 [[kv_namespaces]]
 binding = "CACHE_KV"
-id = "86cd4a3466f24257a2ed4d993abd85c9"
+id = "your-kv-namespace-id"
 
 # Cloudflare R2 Bucket for cover art & locker photos
 [[r2_buckets]]

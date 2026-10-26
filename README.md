@@ -54,47 +54,19 @@ Pour le guide pas-à-pas de configuration, déploiement Cloudflare et procédure
 
 ```
 Bullix/
-├── ARCHITECTURE.md     # Spécifications techniques et architecture détaillée
-├── AGENTS.md           # Consignes de développement et de publication pour agents AI
-├── schema.sql          # Schéma relationnel D1 & SQLite
-├── wrangler.toml       # Configuration Cloudflare (Pages, D1, KV, R2)
-├── shared/             # Code partagé KMP (Domaine, Données, Sync, UI Compose)
-├── androidApp/         # Application Android native (CameraX, ML Kit, WorkManager)
-├── wasmApp/            # Application Web Wasm (Cloudflare Pages)
-├── functions/          # Cloudflare Pages Functions (API Edge Sync & Lookup)
-├── scripts/
-│   ├── scraping/       # Moteur de scraping BDthèque & BDvore (normalisation, CLI)
-│   └── seeding/        # Génération du seed SQL batch D1 et données d'amorçage
-└── .github/workflows/
-    ├── scrape-and-seed.yml # CI/CD : Scraping automatisé, sauvegarde temporaire & injection D1
-    └── deploy-pages.yml    # CI/CD : Déploiement Cloudflare Pages
+├── ARCHITECTURE.md          # Spécifications techniques et architecture détaillée
+├── AGENTS.md                # Consignes de développement et de publication pour agents AI
+├── schema.sql               # Schéma relationnel D1 & SQLite
+├── wrangler.example.toml    # Exemple de configuration Cloudflare (Pages, D1, KV, R2)
+├── app/                     # Application Android native (CameraX, ML Kit, WorkManager, Jetpack Compose)
+├── web/                     # Application Web frontend (Cloudflare Pages)
+├── functions/               # Cloudflare Pages Functions (API Edge Sync & Lookup)
+└── .github/workflows/       # CI/CD (Build Android, déploiement Pages, sécurité)
 ```
 
----
-
-## 🕷️ Scraping & Amorçage de la Base (BDthèque & BDvore)
-
-Bullix dispose d'un moteur d'extraction et d'ingestion automatisé vers Cloudflare D1 :
-
-### 1. En local (via CLI)
-```bash
-# Scraping rapide d'échantillon (2 séries par catégorie)
-npm run scrape:quick
-
-# Scraping complet (Franco-belge, Manga, Comics)
-npm run scrape:full
-
-# Injection du SQL généré dans Cloudflare D1
-npm run d1:seed
-```
-
-### 2. Déporté sur GitHub Actions (Recommandé)
-Le workflow [`.github/workflows/scrape-and-seed.yml`](.github/workflows/scrape-and-seed.yml) permet de :
-1. Lancer le scraping de manière asynchrone sans surcharger la machine locale.
-2. **Transfert direct des jaquettes vers Cloudflare R2** : Les jaquettes d'albums sont streamées directement vers le bucket Cloudflare R2 (`bullix-images`, juridiction UE). **Aucune image n'est stockée sur GitHub** (zéro image dans le repo ou les artefacts).
-3. **Sauvegarder temporairement la base (texte uniquement)** : Publication des artefacts `scraped_data.json` et `generated_seed.sql` dans GitHub Actions (conservés 14 jours).
-4. **Injecter automatiquement dans Cloudflare D1** : Exécution de `wrangler d1 execute bullix-db --remote` pour alimenter le catalogue avec les URLs d'images R2 (`/api/images/covers/:id.jpg`).
-5. Planification mensuelle automatique via cron (`0 3 1 * *`) ou exécution manuelle via `workflow_dispatch`.
+> 💡 **Moteur de Scraping & Configurations Particulières** :  
+> Le moteur d'extraction (BDthèque, BDovore), les pipelines d'injection Cloudflare D1/R2, les jeux de données complets (`scraped_data.json`, `generated_seed.sql`) et les identifiants d'infrastructure privés sont hébergés dans le repository dédié :  
+> 👉 [**Geoff1805/bullix-config**](https://github.com/Geoff1805/bullix-config)
 
 ---
 
