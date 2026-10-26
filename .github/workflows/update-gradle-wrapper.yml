@@ -10,7 +10,7 @@ permissions:
 jobs:
   update-gradle-wrapper:
     name: Check & Update Gradle Wrapper (Stable)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -22,17 +22,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Update Gradle Wrapper to latest stable release
-        uses: gradle-update/update-gradle-wrapper-action@v2
-        with:
-          release-channel: 'stable'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'chore(deps): update Gradle Wrapper to latest stable GA release'
-          pr-title: 'chore(deps): bump Gradle Wrapper to latest stable release'
-          pr-body: |
-            Mise à jour automatique du Gradle Wrapper vers la dernière version stable (GA).
-            - Canal : `stable` (filtre strictement les Nightly builds et Release Candidates)
-            - Respecte la politique de cycle de vie Gradle et le standard CI/CD First de Bullix.
-          labels: |
-            dependencies
-            gradle
+      - name: Update Gradle Wrapper via Native CLI
+        run: |
+          CURRENT_VER=$(curl -s https://services.gradle.org/versions/current | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+          echo "Dernière version Gradle stable : $CURRENT_VER"
+          if [ -f gradlew ]; then
+            chmod +x gradlew
+            ./gradlew wrapper --gradle-version "$CURRENT_VER"
+          fi

@@ -11,7 +11,7 @@ permissions:
 jobs:
   dependency-review:
     name: Dependency Review (PRs)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'pull_request'
     continue-on-error: true
     steps:
@@ -35,7 +35,7 @@ jobs:
 
   security-audit:
     name: Security & Vulnerability Audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
