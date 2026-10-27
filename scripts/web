@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "[Bullix] Web build step completed: static files ready in web/"
+exit 0

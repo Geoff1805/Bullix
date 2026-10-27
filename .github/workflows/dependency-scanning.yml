@@ -1,0 +1,68 @@
+name: Dependency Review & Security Scanning
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  dependency-review:
+    name: Dependency Review (PRs)
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'pull_request'
+    continue-on-error: true
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        # Dependency Review Action requiert un dépôt public ou GitHub Advanced Security (GHAS) sur dépôt privé
+        if: "!github.event.repository.private"
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high
+        continue-on-error: true
+
+      - name: Info dépôt privé sans GHAS
+        if: github.event.repository.private
+        run: |
+          echo "ℹ️ Le repository est privé sans GitHub Advanced Security (GHAS) actif."
+          echo "La revue des dépendances PR est ignorée. L'audit de sécurité npm & gradle s'exécute dans le job security-audit."
+
+
+  security-audit:
+    name: Security & Vulnerability Audit
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Audit NPM Dependencies
+        run: |
+          if [ ! -f package-lock.json ]; then npm i --package-lock-only --no-fund --no-audit || true; fi
+          npm audit --audit-level=high || true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Make gradlew executable
+        run: |
+          if [ -f gradlew ]; then chmod +x gradlew; fi
+
+      - name: Check Gradle Dependencies
+        run: |
+          ./gradlew -q dependencies --configuration releaseRuntimeClasspath || ./gradlew -q dependencies

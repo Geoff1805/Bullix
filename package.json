@@ -1,0 +1,21 @@
+{
+  "name": "bullix",
+  "version": "1.0.0",
+  "description": "Bullix - Cloudflare Serverless & BD Collection Offline-First",
+  "private": true,
+  "bin": {
+    "web": "./scripts/web.js"
+  },
+  "scripts": {
+    "build": "echo 'Static web assets ready in web/'",
+    "pages:dev": "wrangler pages dev web",
+    "pages:deploy": "wrangler pages deploy web",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261012.1",
+    "@types/node": "^22.13.1",
+    "typescript": "^5.7.3",
+    "wrangler": "^4.0.0"
+  }
+}

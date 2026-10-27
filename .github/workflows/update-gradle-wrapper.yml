@@ -1,0 +1,32 @@
+name: Update Gradle Wrapper (Stable)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-gradle-wrapper:
+    name: Check & Update Gradle Wrapper (Stable)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Update Gradle Wrapper via Native CLI
+        run: |
+          CURRENT_VER=$(curl -s https://services.gradle.org/versions/current | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+          echo "Dernière version Gradle stable : $CURRENT_VER"
+          if [ -f gradlew ]; then
+            chmod +x gradlew
+            ./gradlew wrapper --gradle-version "$CURRENT_VER"
+          fi

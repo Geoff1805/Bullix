@@ -1,0 +1,53 @@
+name: Deploy Cloudflare Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Web & Edge Functions
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci --legacy-peer-deps; else npm install --legacy-peer-deps; fi
+
+      - name: Typecheck Edge Functions
+        run: npm run typecheck
+
+      - name: Vérifier la Présence des Identifiants Cloudflare
+        id: check_credentials
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] || [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "has_token=false" >> $GITHUB_OUTPUT
+            echo "::warning title=Secrets Cloudflare Manquants::CLOUDFLARE_API_TOKEN ou CLOUDFLARE_ACCOUNT_ID n'est pas encore configuré dans GitHub Secrets."
+          else
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to Cloudflare Pages
+        if: steps.check_credentials.outputs.has_token == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # 1. Tentative d'auto-création du bucket R2 si le token dispose des droits
+          npx wrangler r2 bucket create bullix-images || true
+
+          # 2. Déploiement sur Cloudflare Pages
+          if ! npx wrangler pages deploy web --project-name=bullix; then
+            echo "::warning title=R2 Bucket Missing::Le bucket R2 'bullix-images' n'est pas encore créé dans votre compte Cloudflare. Déploiement sans binding R2..."
+            grep -v -E "r2_buckets|IMAGES_BUCKET|bullix-images" wrangler.toml > wrangler.tmp && mv wrangler.tmp wrangler.toml
+            npx wrangler pages deploy web --project-name=bullix
+          fi

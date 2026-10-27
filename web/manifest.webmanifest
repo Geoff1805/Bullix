@@ -1,0 +1,25 @@
+{
+  "name": "Bullix — Ma BDthèque",
+  "short_name": "Bullix",
+  "description": "Gestionnaire de Collection BD Offline-First synchronisé GSM & Web",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#121212",
+  "theme_color": "#ffb300",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["books", "entertainment", "lifestyle"]
+}
