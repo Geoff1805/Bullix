@@ -1,10 +1,17 @@
-param(
+﻿param(
     [string]$Version = "",
     [switch]$SkipTests = $false,
     [switch]$SkipBuild = $false,
     [switch]$DeployWeb = $true,
     [switch]$DryRun = $false
 )
+
+# Configuration Encodage UTF-8 Standard (Antigravity)
+[Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding           = [System.Text.Encoding]::UTF8
+$PSDefaultParameterValues['*:Encoding'] = 'utf8'
+
 
 $ErrorActionPreference = "Stop"
 

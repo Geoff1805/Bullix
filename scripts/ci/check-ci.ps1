@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Supervise et inspecte les workflows GitHub Actions du dépôt Geoff1805/Bullix,
     y compris les sous-erreurs d'étapes (steps) et les annotations d'avertissement.
@@ -31,6 +31,13 @@ param(
     [int]$TimeoutSeconds = 300,
     [int]$IntervalSeconds = 15
 )
+
+# Configuration Encodage UTF-8 Standard (Antigravity)
+[Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding           = [System.Text.Encoding]::UTF8
+$PSDefaultParameterValues['*:Encoding'] = 'utf8'
+
 
 $repoOwner = "Geoff1805"
 $repoName = "Bullix"
