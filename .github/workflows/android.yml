@@ -1,6 +1,11 @@
 name: Android CI & Build APK
 
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
 
 concurrency:
@@ -55,14 +60,15 @@ jobs:
         run: |
           mkdir -p build-artifacts
           DEBUG_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+          cp "$DEBUG_APK" "build-artifacts/Bullix-v${VERSION_NAME}.apk"
           cp "$DEBUG_APK" build-artifacts/Bullix.apk
           ls -lh build-artifacts/
 
       - name: Upload Normalized APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Bullix.apk
-          path: build-artifacts/Bullix.apk
+          name: Bullix-v${{ env.VERSION_NAME || 'latest' }}.apk
+          path: build-artifacts/Bullix-v*.apk
           retention-days: 3
 
       - name: Publish Direct Unzipped APK to GitHub Release
@@ -73,9 +79,9 @@ jobs:
           TAG="v${VERSION_NAME}"
           echo "Publishing direct Bullix.apk for tag $TAG..."
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" build-artifacts/Bullix.apk --clobber
+            gh release upload "$TAG" build-artifacts/Bullix-v${VERSION_NAME}.apk build-artifacts/Bullix.apk --clobber
           else
-            gh release create "$TAG" build-artifacts/Bullix.apk \
+            gh release create "$TAG" build-artifacts/Bullix-v${VERSION_NAME}.apk build-artifacts/Bullix.apk \
               --title "Bullix v${VERSION_NAME}" \
               --notes "Version ${VERSION_NAME} compilée automatiquement par GitHub Actions. Fichier APK direct sans archive zip."
           fi

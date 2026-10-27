@@ -1,0 +1,46 @@
+name: "AI PR Reviewer (Gemini)"
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    # S'exécute uniquement sur les branches internes du dépôt (exclut les forks externes et Dependabot pour préserver les quotas)
+    if: github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Extract Git Diff
+        run: |
+          git diff origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > /tmp/pr.diff
+
+      - name: Generate AI Code Review
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "⚠️ `GEMINI_API_KEY` non configurée dans les secrets GitHub du dépôt. Revue IA ignorée." > /tmp/review.md
+          else
+            python3 scripts/ai_assistant.py review-pr --diff-file /tmp/pr.diff > /tmp/review.md
+          fi
+
+      - name: Post Review Comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr comment "$PR_URL" --body-file /tmp/review.md

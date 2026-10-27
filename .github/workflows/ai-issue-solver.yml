@@ -1,0 +1,53 @@
+name: "AI Issue Solver (Gemini)"
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  solve:
+    # Seul le propriétaire du dépôt peut déclencher la résolution par IA (protection anti-abus)
+    if: (github.event.label.name == 'ai:solve' || github.event.label.name == 'ai-task') && (github.actor == github.repository_owner || github.event.sender.login == github.repository_owner)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Extract Project Tree
+        run: |
+          find . -maxdepth 3 -not -path '*/.*' > /tmp/context.txt
+
+      - name: Generate AI Solution
+        id: ai
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "GEMINI_API_KEY non configurée dans les secrets." > /tmp/response.md
+          else
+            python3 scripts/ai_assistant.py solve-issue \
+              --title "$ISSUE_TITLE" \
+              --body "$ISSUE_BODY" \
+              --context-file /tmp/context.txt > /tmp/response.md
+          fi
+
+      - name: Comment Issue with Solution
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body-file /tmp/response.md
