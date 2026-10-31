@@ -79,9 +79,9 @@ jobs:
           TAG="v${VERSION_NAME}"
           echo "Publishing direct Bullix.apk for tag $TAG..."
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" build-artifacts/Bullix-v${VERSION_NAME}.apk build-artifacts/Bullix.apk --clobber
+            gh release upload "$TAG" "build-artifacts/Bullix-v${VERSION_NAME}.apk" "build-artifacts/Bullix.apk" --clobber
           else
-            gh release create "$TAG" build-artifacts/Bullix-v${VERSION_NAME}.apk build-artifacts/Bullix.apk \
+            gh release create "$TAG" "build-artifacts/Bullix-v${VERSION_NAME}.apk" "build-artifacts/Bullix.apk" \
               --title "Bullix v${VERSION_NAME}" \
               --notes "Version ${VERSION_NAME} compilée automatiquement par GitHub Actions. Fichier APK direct sans archive zip."
           fi
