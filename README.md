@@ -48,6 +48,8 @@ Bullix résout les problèmes quotidiens des passionnés de BD :
 Pour tous les détails de conception, consultez le document [ARCHITECTURE.md](ARCHITECTURE.md).
 Pour le guide pas-à-pas de configuration, déploiement Cloudflare et procédure sous Windows, consultez [DEPLOYMENT_WINDOWS_CLOUDFLARE.md](DEPLOYMENT_WINDOWS_CLOUDFLARE.md).
 
+> 🔒 **Données de catalogage & scraping** : le moteur de scraping (BDthèque / BDvore), l'injection D1/R2 et les données de catalogue vivent dans un **dépôt privé séparé** (non distribué publiquement). Le présent dépôt ne contient que l'application et sa configuration d'exemple (`wrangler.example.toml`).
+
 ---
 
 ## 🗄️ Structure du Projet
