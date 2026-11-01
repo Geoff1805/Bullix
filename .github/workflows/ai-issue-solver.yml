@@ -25,9 +25,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Extract Project Tree
+      - name: Extract Clean Project Tree
         run: |
-          find . -maxdepth 3 -not -path '*/.*' > /tmp/context.txt
+          find . -maxdepth 3 -not -path '*/.*' \
+            -not -path '*/build/*' \
+            -not -path '*/node_modules/*' \
+            -not -path '*/dist/*' \
+            -not -path '*/.gradle/*' > /tmp/context.txt
 
       - name: Generate AI Solution
         id: ai

@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   review:
-    # S'exécute uniquement sur les branches internes du dépôt (exclut les forks externes et Dependabot pour préserver les quotas)
+    # S'exécute uniquement sur les branches internes du dépôt (exclut Dependabot et forks externes)
     if: github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     steps:
@@ -24,16 +24,22 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Extract Git Diff
+      - name: Extract Git Diff (Filtered)
         run: |
-          git diff origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > /tmp/pr.diff
+          git diff origin/${{ github.base_ref }}...origin/${{ github.head_ref }} -- . \
+            ':(exclude)*.lock' ':(exclude)*-lock.json' ':(exclude)*.min.*' ':(exclude)*.map' \
+            ':(exclude)*.svg' ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.ico' ':(exclude)*.pdf' > /tmp/pr.diff || true
 
       - name: Generate AI Code Review
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           if [ -z "$GEMINI_API_KEY" ]; then
-            echo "⚠️ `GEMINI_API_KEY` non configurée dans les secrets GitHub du dépôt. Revue IA ignorée." > /tmp/review.md
+            echo "⚠️ \`GEMINI_API_KEY\` non configurée dans les secrets GitHub du dépôt. Revue IA ignorée." > /tmp/review.md
+          elif [ ! -s /tmp/pr.diff ]; then
+            echo "### 🤖 Revue Automatique de Code (Gemini Flash)" > /tmp/review.md
+            echo "✅ **Aucune modification de logique métier à inspecter** (diff vide ou modifications limitées aux lockfiles, médias et assets exclus)." >> /tmp/review.md
+            echo "🛡️ *Économie de tokens : 100 % (Zéro appel API requis).*" >> /tmp/review.md
           else
             python3 scripts/ai_assistant.py review-pr --diff-file /tmp/pr.diff > /tmp/review.md
           fi

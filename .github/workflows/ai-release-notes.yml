@@ -22,14 +22,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Extract Commit Log
+      - name: Extract Commit Log (Cleaned)
         id: commits
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 "${{ github.ref_name }}^" 2>/dev/null || echo "")
           if [ -n "$PREV_TAG" ]; then
-            git log "${PREV_TAG}..${{ github.ref_name }}" --oneline > /tmp/commits.txt
+            git log "${PREV_TAG}..${{ github.ref_name }}" --oneline --no-merges | grep -vi "dependabot" > /tmp/commits.txt || true
           else
-            git log -n 50 --oneline > /tmp/commits.txt
+            git log -n 40 --oneline --no-merges | grep -vi "dependabot" > /tmp/commits.txt || true
           fi
 
       - name: Generate Release Notes
