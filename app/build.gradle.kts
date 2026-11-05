@@ -53,12 +53,25 @@ android {
       }
     }
     create("release") {
-      val customKeystore = file("${rootDir}/app/debug.keystore")
-      val fallbackKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
-      storeFile = if (customKeystore.exists()) customKeystore else fallbackKeystore
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
+      // Cl? de signature PARTAG?E (identique en local et en CI) :
+      //  - CI    : env RELEASE_KEYSTORE_FILE / RELEASE_STORE_PASSWORD / RELEASE_KEY_ALIAS / RELEASE_KEY_PASSWORD (secrets GitHub)
+      //  - Local : m?mes cl?s dans ~/.gradle/gradle.properties (hors d?p?t)
+      fun cfg(name: String): String? = System.getenv(name) ?: (findProperty(name) as String?)
+      val sharedStore = cfg("RELEASE_KEYSTORE_FILE")?.let { file(it) }
+      if (sharedStore != null && sharedStore.exists()) {
+        storeFile = sharedStore
+        storePassword = cfg("RELEASE_STORE_PASSWORD")
+        keyAlias = cfg("RELEASE_KEY_ALIAS")
+        keyPassword = cfg("RELEASE_KEY_PASSWORD")
+      } else {
+        logger.warn("WARNING: cl? de release partag?e absente, signature avec la cl? debug (non interchangeable)")
+        val customKeystore = file("${rootDir}/app/debug.keystore")
+        val fallbackKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
+        storeFile = if (customKeystore.exists()) customKeystore else fallbackKeystore
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
       enableV1Signing = true
       enableV2Signing = true
     }
