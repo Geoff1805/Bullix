@@ -39,3 +39,7 @@ node_modules/
 dist/
 
 .build.lock
+
+# Ajouté automatiquement par Sentinel (Sécurité & Secrets)
+build/
+.gradle/
