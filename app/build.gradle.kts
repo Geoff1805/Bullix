@@ -8,7 +8,7 @@ plugins {
 
 android {
   namespace = "fr.bullix.app"
-  compileSdk = 36
+  compileSdk = 37
 
   val versionPropsFile = file("${rootDir}/version.properties")
   val versionProps = Properties()
